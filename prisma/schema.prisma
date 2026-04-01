@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── User (Unified — single model with plan tags) ────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  country             String?
+  role                String    @default("USER")          // USER | ADMIN
+  plan                String    @default("FREE")          // FREE | HUB | COACHING_8WEEK | COACHING_12WEEK | COACHING_LONGTERM
+  planStatus          String    @default("PENDING")       // PENDING | ACTIVE | EXPIRED | CANCELLED
+  unitPreference      String    @default("METRIC")        // METRIC | IMPERIAL
+  isActive            Boolean   @default(true)
+  paymentScreenshot   String?                              // base64 image
+  paymentAccountName  String?
+  paymentTransactionRef String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  lastLoginAt         DateTime?
+
+  weightLogs          WeightLog[]
+  progressPhotos      ProgressPhoto[]
+  mealLogs            MealLog[]
+  macroTarget         UserMacroTarget?
+  assets              Asset[]
+  favourites          Favourite[]
+  sentMessages        Message[]  @relation("SentMessages")
+  receivedMessages    Message[]  @relation("ReceivedMessages")
+
+  // Coaching application fields (merged — only filled if applying for coaching)
+  coachingExperienceLevel   String?
+  coachingTrainingFrequency Int?
+  coachingTrainingStyles    String?   // JSON
+  coachingHealthConditions  String?
+  coachingPrimaryGoal       String?
+  coachingTimeframe         String?
+  coachingIdealOutcome      String?
+  coachingOccupation        String?
+  coachingWorkSchedule      String?
+  coachingAvailableDays     String?   // JSON
+  coachingGymAccess         String?
+  coachingCurrentDiet       String?
+  coachingFoodRestrictions  String?
+  coachingReferralSource    String?
+  coachingWhyCoaching       String?
+  coachingAdditionalInfo    String?
+  coachingAdminNotes        String?
+  coachingReviewedAt        DateTime?
+}
+
+// ─── Message ─────────────────────────────────────────────────────────
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   String
+  receiverId String
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+}
+
+// ─── Recipe & Related ────────────────────────────────────────────────
+
+model RecipeCategory {
+  id           Int      @id @default(autoincrement())
+  name         String
+  slug         String   @unique
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  recipes      Recipe[]
+}
+
+model DietaryTag {
+  id      Int    @id @default(autoincrement())
+  name    String
+  slug    String @unique
+  recipes RecipeDietaryTag[]
+}
+
+model Recipe {
+  id           Int      @id @default(autoincrement())
+  title        String
+  slug         String   @unique
+  description  String
+  categoryId   Int
+  ingredients  String   // JSON string
+  instructions String   // JSON string
+  videoUrl     String?
+  imageUrl     String?
+  calories     Int
+  protein      Float
+  carbs        Float
+  fat          Float
+  servings     Int      @default(1)
+  prepTimeMins Int      @default(0)
+  cookTimeMins Int      @default(0)
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category    RecipeCategory     @relation(fields: [categoryId], references: [id])
+  dietaryTags RecipeDietaryTag[]
+  favourites  Favourite[]
+
+  @@index([categoryId, isPublished])
+}
+
+model RecipeDietaryTag {
+  recipeId Int
+  tagId    Int
+  recipe   Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tag      DietaryTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([recipeId, tagId])
+}
+
+// ─── Favourite ───────────────────────────────────────────────────────
+
+model Favourite {
+  id       Int    @id @default(autoincrement())
+  userId   String
+  recipeId Int
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  @@unique([userId, recipeId])
+}
+
+// ─── Testimonial ─────────────────────────────────────────────────────
+
+model Testimonial {
+  id           Int      @id @default(autoincrement())
+  clientName   String
+  duration     String
+  quote        String
+  category     String   @default("hub") // hub | coaching
+  profilePhoto String?
+  beforePhoto  String?
+  afterPhoto   String?
+  isFeatured   Boolean  @default(false)
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Restaurant Guide ────────────────────────────────────────────────
+
+model RestaurantGuide {
+  id           Int      @id @default(autoincrement())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  introduction String
+  tips         String?
+  menuItems    String   // JSON string
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── User Tracking ───────────────────────────────────────────────────
+
+model WeightLog {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  weightKg   Float
+  loggedDate DateTime
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, loggedDate])
+  @@index([userId, loggedDate])
+}
+
+model ProgressPhoto {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  imageData String
+  photoDate DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model MealLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  description String
+  mealType    String   @default("Snack")
+  calories    Int
+  protein     Float
+  carbs       Float
+  fat         Float
+  loggedDate  DateTime
+  loggedTime  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, loggedDate])
+}
+
+// ─── Newsletter ──────────────────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ─── Site Content ────────────────────────────────────────────────────
+
+model SiteContent {
+  id           Int      @id @default(autoincrement())
+  contentKey   String   @unique
+  contentValue String
+  contentType  String   @default("TEXT")
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Asset ───────────────────────────────────────────────────────────
+
+model Asset {
+  id           Int      @id @default(autoincrement())
+  filename     String
+  data         String
+  fileSize     Int
+  mimeType     String
+  altText      String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+}
+
+// ─── User Macro Target ──────────────────────────────────────────────
+
+model UserMacroTarget {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique
+  calories  Int
+  protein   Int
+  carbs     Int
+  fat       Int
+  goal      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// ─── Payment Settings ───────────────────────────────────────────────
+
+model PaymentSettings {
+  id            Int     @id @default(autoincrement())
+  accountNumber String
+  accountName   String
+  qrCodeData    String?
+  instructions  String?
+  price         Int     @default(79)
+  currency      String  @default("PKR")
+}

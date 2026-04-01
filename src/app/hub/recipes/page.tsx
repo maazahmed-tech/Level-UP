@@ -1,0 +1,48 @@
+import { prisma } from "@/lib/db";
+import RecipeBrowser from "./RecipeBrowser";
+
+export default async function RecipesPage() {
+  const recipes = await prisma.recipe.findMany({
+    where: { isPublished: true },
+    include: { category: true, dietaryTags: { include: { tag: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const categories = await prisma.recipeCategory.findMany({
+    orderBy: { displayOrder: "asc" },
+  });
+
+  const tags = await prisma.dietaryTag.findMany();
+
+  // Serialize for client component
+  const serializedRecipes = recipes.map((r) => ({
+    id: r.id,
+    title: r.title,
+    slug: r.slug,
+    description: r.description,
+    category: r.category.name,
+    tags: r.dietaryTags.map((dt) => dt.tag.name),
+    ingredients: JSON.parse(r.ingredients) as string[],
+    instructions: JSON.parse(r.instructions) as string[],
+    videoUrl: r.videoUrl,
+    imageUrl: r.imageUrl,
+    calories: r.calories,
+    protein: r.protein,
+    carbs: r.carbs,
+    fat: r.fat,
+    servings: r.servings,
+    prepTimeMins: r.prepTimeMins,
+    cookTimeMins: r.cookTimeMins,
+  }));
+
+  const categoryNames = ["All", ...categories.map((c) => c.name)];
+  const tagNames = tags.map((t) => t.name);
+
+  return (
+    <RecipeBrowser
+      recipes={serializedRecipes}
+      categories={categoryNames}
+      tags={tagNames}
+    />
+  );
+}
