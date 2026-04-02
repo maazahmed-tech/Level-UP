@@ -6,15 +6,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 const sidebarLinks = [
-  { href: "/hub", label: "Dashboard", icon: "📊" },
-  { href: "/hub/recipes", label: "Recipes", icon: "🍴" },
-  { href: "/hub/favourites", label: "Favourites", icon: "❤" },
-  { href: "/hub/messages", label: "Messages", icon: "💬" },
-  { href: "/hub/restaurants", label: "Restaurants", icon: "🍽" },
-  { href: "/hub/calculator", label: "Calculator", icon: "🧮" },
-  { href: "/hub/snap-my-macros", label: "Snap My Macros", icon: "📷" },
-  { href: "/hub/progress", label: "Progress", icon: "📈" },
-  { href: "/hub/settings", label: "Settings", icon: "⚙" },
+  { href: "/hub", label: "Dashboard" },
+  { href: "/hub/feed", label: "Feed" },
+  { href: "/hub/recipes", label: "Recipes" },
+  { href: "/hub/workouts", label: "Workouts" },
+  { href: "/hub/restaurants", label: "Restaurants" },
+  { href: "/hub/calculator", label: "Calculator" },
+  { href: "/hub/snap-my-macros", label: "Meal Tracker" },
+  { href: "/hub/progress", label: "Progress" },
+  { href: "/hub/analytics", label: "Analytics" },
+  { href: "/hub/favourites", label: "Favourites" },
+  { href: "/hub/messages", label: "Messages" },
+  { href: "/hub/settings", label: "Settings" },
 ];
 
 export default function HubLayout({ children }: { children: React.ReactNode }) {
@@ -64,13 +67,12 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
+                className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-r-3 border-primary"
                     : "text-white/60 hover:bg-dark/5 hover:text-white"
                 }`}
               >
-                <span className="text-lg">{link.icon}</span>
                 {link.label}
               </Link>
             );
@@ -81,9 +83,8 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-[#222]">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-white/50 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
+            className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-white/50 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
           >
-            <span className="text-lg">🚪</span>
             Log Out
           </button>
         </div>

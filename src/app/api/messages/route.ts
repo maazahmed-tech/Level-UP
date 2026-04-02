@@ -91,11 +91,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { receiverId, content } = body;
+    const { receiverId, content, imageData } = body;
 
-    if (!receiverId || !content?.trim()) {
+    if (!receiverId || (!content?.trim() && !imageData)) {
       return NextResponse.json(
-        { error: "Receiver and content are required" },
+        { error: "Receiver and content or image are required" },
         { status: 400 }
       );
     }
@@ -115,7 +115,8 @@ export async function POST(request: Request) {
       data: {
         senderId: user.userId,
         receiverId,
-        content: content.trim(),
+        content: content?.trim() || "[Image]",
+        imageData: imageData || null,
       },
       include: {
         sender: {

@@ -10,12 +10,17 @@ interface SectionState {
 export default function AdminContentPage() {
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<Record<string, SectionState>>({
-    hero: { expanded: true, saving: false },
+    branding: { expanded: true, saving: false },
+    hero: { expanded: false, saving: false },
     pricing: { expanded: false, saving: false },
     social: { expanded: false, saving: false },
     visibility: { expanded: false, saving: false },
     about: { expanded: false, saving: false },
   });
+
+  // Branding
+  const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Hero
   const [heroHeadline, setHeroHeadline] = useState("");
@@ -49,6 +54,11 @@ export default function AdminContentPage() {
     fetch("/api/admin/content")
       .then((r) => r.json())
       .then((data: Record<string, string>) => {
+        // Branding
+        if (data.site_logo) {
+          setSiteLogo(data.site_logo);
+          setLogoPreview(data.site_logo);
+        }
         // Hero
         if (data.hero_headline) setHeroHeadline(data.hero_headline);
         if (data.hero_subtitle) setHeroSubtitle(data.hero_subtitle);
@@ -104,6 +114,29 @@ export default function AdminContentPage() {
         [sectionKey]: { ...prev[sectionKey], saving: false },
       }));
     }, 2000);
+  }
+
+  // Logo upload handler
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert("Logo must be under 500KB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setLogoPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function saveBranding() {
+    if (logoPreview) {
+      saveEntries("branding", { site_logo: logoPreview });
+      setSiteLogo(logoPreview);
+    }
   }
 
   function saveHero() {
@@ -174,6 +207,66 @@ export default function AdminContentPage() {
         <p className="text-sm text-white/50 mt-1">
           Edit the content displayed on the main website.
         </p>
+      </div>
+
+      {/* ── BRANDING ─────────────────────────────────────── */}
+      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
+        <button
+          onClick={() => toggleSection("branding")}
+          className="w-full px-6 py-4 flex items-center justify-between cursor-pointer bg-transparent border-none text-left"
+        >
+          <h2 className="text-lg font-bold text-white">Branding</h2>
+          <svg
+            className={`w-5 h-5 text-white/40 transition-transform ${sections.branding.expanded ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {sections.branding.expanded && (
+          <div className="px-6 pb-6 space-y-4 border-t border-[#2A2A2A] pt-4">
+            <div>
+              <label className="text-xs text-white/40 uppercase tracking-wide block mb-2">
+                Current Logo
+              </label>
+              <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-4 inline-block">
+                <img
+                  src={logoPreview || siteLogo || "/images/logo.svg"}
+                  alt="Site Logo"
+                  className="h-16 w-auto object-contain"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-white/40 uppercase tracking-wide block mb-2">
+                Upload New Logo (max 500KB)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="text-sm text-white/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#E51A1A] file:text-white hover:file:opacity-90"
+              />
+              {logoPreview && logoPreview !== siteLogo && (
+                <div className="mt-3">
+                  <p className="text-xs text-white/40 mb-1">Preview:</p>
+                  <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-4 inline-block">
+                    <img
+                      src={logoPreview}
+                      alt="Logo Preview"
+                      className="h-16 w-auto object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <button onClick={saveBranding} className={saveBtnCls(sections.branding.saving)}>
+              {sections.branding.saving ? "Saved!" : "Save Changes"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── HERO ──────────────────────────────────────────── */}

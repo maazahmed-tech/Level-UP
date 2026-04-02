@@ -1,6 +1,31 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const restaurant = await prisma.restaurantGuide.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!restaurant) {
+      return NextResponse.json(
+        { error: "Restaurant not found" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ restaurant });
+  } catch (error) {
+    console.error("Admin GET restaurant error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch restaurant" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

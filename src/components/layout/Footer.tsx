@@ -27,7 +27,6 @@ export default async function Footer() {
       { name: "TikTok", url: s.social_tiktok || "", visible: s.social_tiktok_visible === "true" },
     ].filter((item) => item.visible);
   } catch {
-    // Fallback during build or when DB unavailable
     socials = [
       { name: "YouTube", url: "", visible: true },
       { name: "Instagram", url: "", visible: true },
@@ -38,8 +37,8 @@ export default async function Footer() {
   return (
     <footer className="bg-[#0A0A0A] text-white pt-15 pb-8">
       <div className="max-w-[1200px] mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.5fr] gap-10">
-          {/* Logo */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          {/* Logo + Copyright */}
           <div>
             <div className="flex items-center gap-2.5 mb-4">
               <Image
@@ -101,34 +100,6 @@ export default async function Footer() {
                 <span className="text-white/40 text-[0.9rem]">Coming soon</span>
               )}
             </div>
-          </div>
-
-          {/* Newsletter */}
-          <div>
-            <h4 className="text-[0.85rem] uppercase tracking-[2px] mb-4 text-white/60">
-              Sign up for our newsletter
-            </h4>
-            <div className="flex mt-2">
-              <input
-                type="email"
-                placeholder="Your email"
-                className="flex-1 px-4 py-3 rounded-l-full text-[0.9rem] bg-[#1E1E1E] border border-[#2A2A2A] border-r-0 text-white placeholder:text-white/40 outline-none focus:border-[#E51A1A]"
-              />
-              <button className="px-6 py-3 bg-[#E51A1A] text-white border-none rounded-r-full font-bold text-[0.8rem] uppercase cursor-pointer hover:bg-[#C41010] transition-colors">
-                Subscribe
-              </button>
-            </div>
-            <p className="text-white/40 text-[0.75rem] mt-2">
-              By clicking subscribe, I have read and understood the{" "}
-              <Link href="/privacy-policy" className="text-white/50 underline">
-                Privacy Policy
-              </Link>{" "}
-              &amp;{" "}
-              <Link href="/terms" className="text-white/50 underline">
-                Terms and Conditions
-              </Link>
-              .
-            </p>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ interface Message {
   id: string;
   senderId: string;
   content: string;
+  imageData?: string | null;
   createdAt: string;
   sender: {
     id: string;
@@ -33,7 +34,10 @@ export default function AdminMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,15 +91,31 @@ export default function AdminMessagesPage() {
   function selectConversation(userId: string) {
     setSelectedUserId(userId);
     setShowSidebar(false);
-    // Clear unread for this conversation locally
     setConversations((prev) =>
       prev.map((c) => (c.userId === userId ? { ...c, unreadCount: 0 } : c))
     );
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be under 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function clearImage() {
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedUserId || sending) return;
+    if ((!newMessage.trim() && !imagePreview) || !selectedUserId || sending) return;
 
     setSending(true);
     try {
@@ -104,7 +124,8 @@ export default function AdminMessagesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           receiverId: selectedUserId,
-          content: newMessage.trim(),
+          content: newMessage.trim() || (imagePreview ? "[Image]" : ""),
+          imageData: imagePreview || undefined,
         }),
       });
 
@@ -112,6 +133,7 @@ export default function AdminMessagesPage() {
         const data = await res.json();
         setMessages((prev) => [...prev, data.message]);
         setNewMessage("");
+        clearImage();
       }
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -264,9 +286,19 @@ export default function AdminMessagesPage() {
                             : "bg-[#2A2A2A] text-white"
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">
-                          {msg.content}
-                        </p>
+                        {msg.imageData && (
+                          <img
+                            src={msg.imageData}
+                            alt="Shared image"
+                            className="max-w-[300px] w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setFullScreenImage(msg.imageData!)}
+                          />
+                        )}
+                        {msg.content && msg.content !== "[Image]" && (
+                          <p className="text-sm whitespace-pre-wrap">
+                            {msg.content}
+                          </p>
+                        )}
                         <p
                           className={`text-[10px] mt-1.5 ${
                             isAdmin ? "text-white/60" : "text-white/30"
@@ -281,11 +313,48 @@ export default function AdminMessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Image preview */}
+              {imagePreview && (
+                <div className="px-4 py-2 border-t border-[#2A2A2A] bg-[#0A0A0A]">
+                  <div className="relative inline-block">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="h-16 rounded-lg"
+                    />
+                    <button
+                      onClick={clearImage}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-[#E51A1A] text-white rounded-full text-xs flex items-center justify-center cursor-pointer border-none hover:bg-red-600"
+                    >
+                      x
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Input bar */}
               <form
                 onSubmit={handleSend}
-                className="px-4 py-3 border-t border-[#2A2A2A] flex gap-3"
+                className="px-4 py-3 border-t border-[#2A2A2A] flex gap-3 items-center"
               >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2.5 text-white/40 hover:text-white/70 transition-colors bg-transparent border-none cursor-pointer flex-shrink-0"
+                  title="Send image"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                  </svg>
+                </button>
                 <input
                   type="text"
                   value={newMessage}
@@ -295,7 +364,7 @@ export default function AdminMessagesPage() {
                 />
                 <button
                   type="submit"
-                  disabled={!newMessage.trim() || sending}
+                  disabled={(!newMessage.trim() && !imagePreview) || sending}
                   className="px-6 py-3 bg-[#E51A1A] text-white rounded-xl text-sm font-semibold hover:bg-[#E51A1A]/90 transition-colors cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {sending ? "..." : "Send"}
@@ -305,7 +374,6 @@ export default function AdminMessagesPage() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-4xl mb-4">💬</p>
                 <p className="text-white/30 text-sm">
                   Select a conversation to start messaging
                 </p>
@@ -314,6 +382,27 @@ export default function AdminMessagesPage() {
           )}
         </div>
       </div>
+
+      {/* Full-screen image modal */}
+      {fullScreenImage && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <button
+            onClick={() => setFullScreenImage(null)}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center text-xl border-none cursor-pointer transition-colors"
+          >
+            x
+          </button>
+          <img
+            src={fullScreenImage}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

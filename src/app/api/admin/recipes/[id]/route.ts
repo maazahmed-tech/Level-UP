@@ -1,6 +1,41 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const recipeId = Number(id);
+    if (isNaN(recipeId)) {
+      return NextResponse.json({ error: "Invalid recipe ID" }, { status: 400 });
+    }
+
+    const recipe = await prisma.recipe.findUnique({
+      where: { id: recipeId },
+      include: {
+        category: true,
+        dietaryTags: {
+          include: { tag: true },
+        },
+      },
+    });
+
+    if (!recipe) {
+      return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ recipe });
+  } catch (error) {
+    console.error("Admin GET recipe error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch recipe" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

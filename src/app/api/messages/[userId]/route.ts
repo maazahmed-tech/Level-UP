@@ -23,7 +23,12 @@ export async function GET(
         ],
       },
       orderBy: { createdAt: "asc" },
-      include: {
+      select: {
+        id: true,
+        senderId: true,
+        content: true,
+        imageData: true,
+        createdAt: true,
         sender: {
           select: { id: true, firstName: true, lastName: true, role: true },
         },

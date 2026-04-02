@@ -1,0 +1,366 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import Link from "next/link";
+
+interface WorkoutData {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  videoUrl: string;
+  difficulty: string;
+  duration: string | null;
+  targetGoal: string | null;
+  subcategoryId: number;
+  subcategoryName: string;
+  categoryId: number;
+  categoryName: string;
+}
+
+interface Subcategory {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  subcategories: Subcategory[];
+}
+
+interface Props {
+  workouts: WorkoutData[];
+  categories: Category[];
+}
+
+function extractYouTubeId(url: string): string | null {
+  const longMatch = url.match(
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+  );
+  if (longMatch) return longMatch[1];
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return shortMatch[1];
+  return null;
+}
+
+const difficultyColor: Record<string, string> = {
+  Beginner: "bg-green-500/20 text-green-400",
+  Intermediate: "bg-[#FF6B00]/20 text-[#FF6B00]",
+  Advanced: "bg-[#E51A1A]/20 text-[#E51A1A]",
+};
+
+const goalColor: Record<string, string> = {
+  "Fat Loss": "bg-purple-500/20 text-purple-400",
+  "Muscle Gain": "bg-blue-500/20 text-blue-400",
+  "General Fitness": "bg-teal-500/20 text-teal-400",
+};
+
+export default function WorkoutsBrowser({ workouts, categories }: Props) {
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(
+    null
+  );
+  const [difficulty, setDifficulty] = useState<string>("All");
+  const [goal, setGoal] = useState<string>("All");
+  const [expandedCats, setExpandedCats] = useState<Set<number>>(new Set());
+
+  function toggleCatExpand(catId: number) {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  }
+
+  const filtered = useMemo(() => {
+    let result = [...workouts];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (w) =>
+          w.title.toLowerCase().includes(q) ||
+          w.description.toLowerCase().includes(q)
+      );
+    }
+
+    if (selectedSubcategory) {
+      result = result.filter((w) => w.subcategoryId === selectedSubcategory);
+    } else if (selectedCategory) {
+      result = result.filter((w) => w.categoryId === selectedCategory);
+    }
+
+    if (difficulty !== "All") {
+      result = result.filter((w) => w.difficulty === difficulty);
+    }
+
+    if (goal !== "All") {
+      result = result.filter((w) => w.targetGoal === goal);
+    }
+
+    return result;
+  }, [workouts, search, selectedCategory, selectedSubcategory, difficulty, goal]);
+
+  const difficultyOptions = ["All", "Beginner", "Intermediate", "Advanced"];
+  const goalOptions = ["All", "Fat Loss", "Muscle Gain", "General Fitness"];
+
+  return (
+    <div>
+      <h1 className="text-3xl font-black mb-2 text-white">Workouts</h1>
+      <p className="text-white/60 mb-8">
+        Follow along with workout videos for every fitness level.
+      </p>
+
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Sidebar filters */}
+        <div className="w-full lg:w-[260px] flex-shrink-0 space-y-6">
+          {/* Search */}
+          <div>
+            <input
+              type="text"
+              placeholder="Search workouts..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl py-3 px-4 text-white focus:border-[#E51A1A] focus:outline-none placeholder:text-white/30 text-sm"
+            />
+          </div>
+
+          {/* Category filter */}
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+            <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
+              Categories
+            </h3>
+            <button
+              onClick={() => {
+                setSelectedCategory(null);
+                setSelectedSubcategory(null);
+              }}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1 cursor-pointer ${
+                !selectedCategory
+                  ? "bg-[#E51A1A]/20 text-[#E51A1A]"
+                  : "text-white/60 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              All Categories
+            </button>
+            {categories.map((cat) => (
+              <div key={cat.id}>
+                <button
+                  onClick={() => {
+                    if (selectedCategory === cat.id) {
+                      setSelectedCategory(null);
+                      setSelectedSubcategory(null);
+                    } else {
+                      setSelectedCategory(cat.id);
+                      setSelectedSubcategory(null);
+                    }
+                    toggleCatExpand(cat.id);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between cursor-pointer ${
+                    selectedCategory === cat.id && !selectedSubcategory
+                      ? "bg-[#E51A1A]/20 text-[#E51A1A]"
+                      : "text-white/60 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {cat.name}
+                  {cat.subcategories.length > 0 && (
+                    <svg
+                      className={`w-4 h-4 transition-transform ${
+                        expandedCats.has(cat.id) ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  )}
+                </button>
+                {expandedCats.has(cat.id) &&
+                  cat.subcategories.map((sub) => (
+                    <button
+                      key={sub.id}
+                      onClick={() => {
+                        setSelectedCategory(cat.id);
+                        setSelectedSubcategory(
+                          selectedSubcategory === sub.id ? null : sub.id
+                        );
+                      }}
+                      className={`w-full text-left pl-8 pr-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        selectedSubcategory === sub.id
+                          ? "bg-[#E51A1A]/20 text-[#E51A1A]"
+                          : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                      }`}
+                    >
+                      {sub.name}
+                    </button>
+                  ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Difficulty filter */}
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+            <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
+              Difficulty
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {difficultyOptions.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setDifficulty(opt)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    difficulty === opt
+                      ? "bg-[#E51A1A] text-white"
+                      : "bg-[#0A0A0A] text-white/50 border border-[#2A2A2A] hover:border-[#E51A1A]/30"
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Goal filter */}
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+            <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
+              Goal
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {goalOptions.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setGoal(opt)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    goal === opt
+                      ? "bg-[#E51A1A] text-white"
+                      : "bg-[#0A0A0A] text-white/50 border border-[#2A2A2A] hover:border-[#E51A1A]/30"
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-white/60 mb-6">
+            <span className="font-semibold text-white">{filtered.length}</span>{" "}
+            {filtered.length === 1 ? "workout" : "workouts"} found
+          </p>
+
+          {filtered.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filtered.map((workout) => {
+                const videoId = extractYouTubeId(workout.videoUrl);
+                const thumbnail = videoId
+                  ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+                  : null;
+
+                return (
+                  <Link
+                    key={workout.id}
+                    href={`/hub/workouts/${workout.slug}`}
+                    className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative h-[180px] bg-[#2A2A2A] flex items-center justify-center overflow-hidden">
+                      {thumbnail ? (
+                        <img
+                          src={thumbnail}
+                          alt={workout.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <svg
+                          className="w-12 h-12 text-white/20"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                      {/* Play overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
+                        <div className="w-12 h-12 rounded-full bg-[#E51A1A] flex items-center justify-center">
+                          <svg
+                            className="w-5 h-5 text-white ml-0.5"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card body */}
+                    <div className="p-4">
+                      <h3 className="font-bold text-white text-sm mb-2 group-hover:text-[#E51A1A] transition-colors line-clamp-2">
+                        {workout.title}
+                      </h3>
+
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            difficultyColor[workout.difficulty] ||
+                            "bg-white/10 text-white/50"
+                          }`}
+                        >
+                          {workout.difficulty}
+                        </span>
+                        {workout.duration && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50">
+                            {workout.duration}
+                          </span>
+                        )}
+                        {workout.targetGoal && (
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              goalColor[workout.targetGoal] ||
+                              "bg-white/10 text-white/50"
+                            }`}
+                          >
+                            {workout.targetGoal}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-white/40">
+                        {workout.categoryName}{" "}
+                        <span className="text-white/20">&gt;</span>{" "}
+                        {workout.subcategoryName}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-12 text-center">
+              <div className="text-5xl mb-4">🔍</div>
+              <h2 className="text-xl font-bold text-white mb-2">
+                No workouts found
+              </h2>
+              <p className="text-white/50">
+                Try adjusting your filters to find what you&apos;re looking for.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

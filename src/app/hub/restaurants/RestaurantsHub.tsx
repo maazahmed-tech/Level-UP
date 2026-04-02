@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import FavouriteButton from "@/components/ui/FavouriteButton";
 
 interface Restaurant {
   id: number;
@@ -18,6 +19,14 @@ export default function RestaurantsHub({
   restaurants: Restaurant[];
 }) {
   const [search, setSearch] = useState("");
+  const [favouritedIds, setFavouritedIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/favourites/restaurants")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((ids: number[]) => setFavouritedIds(new Set(ids)))
+      .catch(() => {});
+  }, []);
 
   const filtered = restaurants.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase())
@@ -53,31 +62,37 @@ export default function RestaurantsHub({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((restaurant) => (
-            <Link
-              key={restaurant.id}
-              href={`/hub/restaurants/${restaurant.slug}`}
-              className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-primary/50 transition-colors group"
-            >
-              {/* Emoji header */}
-              <div className="bg-[#161616] flex items-center justify-center py-8">
-                <span className="text-5xl group-hover:scale-110 transition-transform">
-                  {restaurant.logoUrl || "🍽"}
-                </span>
-              </div>
+            <div key={restaurant.id} className="relative">
+              <FavouriteButton
+                type="restaurant"
+                itemId={restaurant.id}
+                initialFavourited={favouritedIds.has(restaurant.id)}
+              />
+              <Link
+                href={`/hub/restaurants/${restaurant.slug}`}
+                className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-primary/50 transition-colors group block"
+              >
+                {/* Emoji header */}
+                <div className="bg-[#161616] flex items-center justify-center py-8">
+                  <span className="text-5xl group-hover:scale-110 transition-transform">
+                    {restaurant.logoUrl || "🍽"}
+                  </span>
+                </div>
 
-              {/* Card body */}
-              <div className="p-5">
-                <h2 className="font-bold text-lg text-white mb-1">
-                  {restaurant.name}
-                </h2>
-                <p className="text-sm text-primary font-semibold mb-2">
-                  {restaurant.itemCount} items listed
-                </p>
-                <p className="text-white/50 text-sm line-clamp-2">
-                  {restaurant.introduction}
-                </p>
-              </div>
-            </Link>
+                {/* Card body */}
+                <div className="p-5">
+                  <h2 className="font-bold text-lg text-white mb-1">
+                    {restaurant.name}
+                  </h2>
+                  <p className="text-sm text-primary font-semibold mb-2">
+                    {restaurant.itemCount} items listed
+                  </p>
+                  <p className="text-white/50 text-sm line-clamp-2">
+                    {restaurant.introduction}
+                  </p>
+                </div>
+              </Link>
+            </div>
           ))}
         </div>
       )}

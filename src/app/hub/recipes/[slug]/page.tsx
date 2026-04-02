@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import FavouriteButton from "@/components/ui/FavouriteButton";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   Breakfast: "\uD83E\uDD5E",
@@ -13,12 +15,10 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 
 function extractYouTubeId(url: string): string | null {
-  // https://www.youtube.com/watch?v=XXX
   const longMatch = url.match(
     /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
   );
   if (longMatch) return longMatch[1];
-  // https://youtu.be/XXX
   const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
   if (shortMatch) return shortMatch[1];
   return null;
@@ -38,6 +38,21 @@ export default async function RecipeDetailPage({
 
   if (!recipe) {
     notFound();
+  }
+
+  // Check if user has favourited this recipe
+  let isFavourited = false;
+  const user = await getCurrentUser();
+  if (user) {
+    const fav = await prisma.favourite.findUnique({
+      where: {
+        userId_recipeId: {
+          userId: user.userId,
+          recipeId: recipe.id,
+        },
+      },
+    });
+    isFavourited = !!fav;
   }
 
   const ingredients: string[] = JSON.parse(recipe.ingredients);
@@ -73,14 +88,24 @@ export default async function RecipeDetailPage({
         Back to Recipes
       </Link>
 
-      {/* Title + Badges */}
-      <h1 className="text-3xl font-black text-white mb-3">{recipe.title}</h1>
+      {/* Title + Favourite + Badges */}
+      <div className="flex items-start gap-4 mb-3">
+        <h1 className="text-3xl font-black text-white">{recipe.title}</h1>
+        <div className="relative flex-shrink-0 w-10 h-10">
+          <FavouriteButton
+            type="recipe"
+            itemId={recipe.id}
+            initialFavourited={isFavourited}
+            className="!static !w-10 !h-10"
+          />
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2 mb-8">
         <span className="inline-flex items-center gap-1.5 bg-[#E51A1A]/20 text-[#E51A1A] text-sm font-bold px-3 py-1 rounded-full">
           {CATEGORY_EMOJI[recipe.category.name] || "\uD83C\uDF7D\uFE0F"}{" "}
           {recipe.category.name}
         </span>
-        {recipe.dietaryTags.map((dt) => (
+        {recipe.dietaryTags.map((dt: { tag: { id: number; name: string } }) => (
           <span
             key={dt.tag.id}
             className="bg-[#1E1E1E] border border-[#2A2A2A] text-white/60 text-xs font-semibold px-3 py-1 rounded-full"

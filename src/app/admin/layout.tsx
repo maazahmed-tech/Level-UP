@@ -5,15 +5,17 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 const sidebarLinks = [
-  { href: "/admin", label: "Dashboard", icon: "\uD83D\uDCCA" },
-  { href: "/admin/recipes", label: "Recipes", icon: "\uD83C\uDF74" },
-  { href: "/admin/testimonials", label: "Testimonials", icon: "\u2B50" },
-  { href: "/admin/restaurants", label: "Restaurants", icon: "\uD83C\uDF7D" },
-  { href: "/admin/users", label: "Users", icon: "\uD83D\uDC65" },
-{ href: "/admin/content", label: "Site Content", icon: "\uD83D\uDCDD" },
-  { href: "/admin/assets", label: "Assets", icon: "\uD83D\uDDBC" },
-  { href: "/admin/messages", label: "Messages", icon: "\uD83D\uDCAC" },
-  { href: "/admin/newsletter", label: "Newsletter", icon: "\u2709" },
+  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/recipes", label: "Recipes" },
+  { href: "/admin/workouts", label: "Workouts" },
+  { href: "/admin/testimonials", label: "Testimonials" },
+  { href: "/admin/restaurants", label: "Restaurants" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/signup-requests", label: "Signup Requests" },
+  { href: "/admin/feed", label: "Feed" },
+  { href: "/admin/content", label: "Site Content" },
+  { href: "/admin/assets", label: "Assets" },
+  { href: "/admin/messages", label: "Messages" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -61,13 +63,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
+                className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-[#1E1E1E]/10 text-white border-l-3 border-primary"
+                    ? "bg-primary/10 text-primary border-r-3 border-primary"
                     : "text-white/60 hover:text-white/80 hover:bg-[#1E1E1E]/5"
                 }`}
               >
-                <span className="text-lg">{link.icon}</span>
                 {link.label}
               </Link>
             );
@@ -78,16 +79,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-4 border-t border-white/10 space-y-1">
           <Link
             href="/"
-            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-white/60 hover:text-white hover:bg-[#1E1E1E]/5 rounded-lg transition-colors"
+            className="flex items-center px-4 py-2.5 text-sm font-medium text-white/60 hover:text-white hover:bg-[#1E1E1E]/5 rounded-lg transition-colors"
           >
-            <span className="text-lg">&larr;</span>
-            Back to Site
+            &larr; Back to Site
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-white/60 hover:text-red-400 hover:bg-[#1E1E1E]/5 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
+            className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-white/60 hover:text-red-400 hover:bg-[#1E1E1E]/5 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
           >
-            <span className="text-lg">{"\uD83D\uDEAA"}</span>
             Log Out
           </button>
         </div>

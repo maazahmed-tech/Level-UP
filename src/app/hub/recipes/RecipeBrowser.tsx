@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import FavouriteButton from "@/components/ui/FavouriteButton";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -52,6 +53,14 @@ export default function RecipeBrowser({
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<SortOption>("newest");
   const [page, setPage] = useState(1);
+  const [favouritedIds, setFavouritedIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/favourites")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((ids: number[]) => setFavouritedIds(new Set(ids)))
+      .catch(() => {});
+  }, []);
 
   const toggleTag = (tag: string) => {
     setActiveTags((prev) => {
@@ -211,87 +220,93 @@ export default function RecipeBrowser({
       {paginatedRecipes.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {paginatedRecipes.map((recipe) => (
-            <Link
-              key={recipe.id}
-              href={`/hub/recipes/${recipe.slug}`}
-              className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
-            >
-              {/* Image / Placeholder */}
-              <div className="relative h-[200px] bg-gradient-to-br from-[#2A2A2A] to-[#1E1E1E] flex items-center justify-center">
-                {recipe.imageUrl ? (
-                  <img
-                    src={recipe.imageUrl}
-                    alt={recipe.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-5xl group-hover:scale-110 transition-transform duration-300">
-                    {CATEGORY_EMOJI[recipe.category] || "\uD83C\uDF7D\uFE0F"}
-                  </span>
-                )}
-                <span className="absolute top-3 right-3 bg-[#E51A1A]/20 text-[#E51A1A] text-xs font-bold px-3 py-1 rounded-full">
-                  {recipe.category}
-                </span>
-              </div>
-
-              {/* Card Body */}
-              <div className="p-5">
-                <h3 className="font-bold text-white text-lg mb-1 group-hover:text-[#E51A1A] transition-colors">
-                  {recipe.title}
-                </h3>
-
-                <div className="flex items-center gap-3 text-sm text-white/60 mb-3">
-                  <span className="flex items-center gap-1">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"
-                      />
-                    </svg>
-                    {recipe.calories} kcal
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {recipe.prepTimeMins + recipe.cookTimeMins} min
+            <div key={recipe.id} className="relative">
+              <FavouriteButton
+                type="recipe"
+                itemId={recipe.id}
+                initialFavourited={favouritedIds.has(recipe.id)}
+              />
+              <Link
+                href={`/hub/recipes/${recipe.slug}`}
+                className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30 block"
+              >
+                {/* Image / Placeholder */}
+                <div className="relative h-[200px] bg-gradient-to-br from-[#2A2A2A] to-[#1E1E1E] flex items-center justify-center">
+                  {recipe.imageUrl ? (
+                    <img
+                      src={recipe.imageUrl}
+                      alt={recipe.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-5xl group-hover:scale-110 transition-transform duration-300">
+                      {CATEGORY_EMOJI[recipe.category] || "\uD83C\uDF7D\uFE0F"}
+                    </span>
+                  )}
+                  <span className="absolute top-3 right-3 bg-[#E51A1A]/20 text-[#E51A1A] text-xs font-bold px-3 py-1 rounded-full">
+                    {recipe.category}
                   </span>
                 </div>
 
-                {/* Macro Bar */}
-                <div className="flex items-center gap-4 text-xs text-white/60">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#E51A1A]" />
-                    P: {recipe.protein}g
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#FF6B00]" />
-                    C: {recipe.carbs}g
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#FFB800]" />
-                    F: {recipe.fat}g
-                  </span>
+                {/* Card Body */}
+                <div className="p-5">
+                  <h3 className="font-bold text-white text-lg mb-1 group-hover:text-[#E51A1A] transition-colors">
+                    {recipe.title}
+                  </h3>
+
+                  <div className="flex items-center gap-3 text-sm text-white/60 mb-3">
+                    <span className="flex items-center gap-1">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"
+                        />
+                      </svg>
+                      {recipe.calories} kcal
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      {recipe.prepTimeMins + recipe.cookTimeMins} min
+                    </span>
+                  </div>
+
+                  {/* Macro Bar */}
+                  <div className="flex items-center gap-4 text-xs text-white/60">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#E51A1A]" />
+                      P: {recipe.protein}g
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#FF6B00]" />
+                      C: {recipe.carbs}g
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#FFB800]" />
+                      F: {recipe.fat}g
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       ) : (

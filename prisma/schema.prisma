@@ -7,55 +7,39 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── User (Unified — single model with plan tags) ────────────────────
+// ─── User ────────────────────────────────────────────────────────────
 
 model User {
-  id                  String    @id @default(uuid())
-  email               String    @unique
-  passwordHash        String
-  firstName           String
-  lastName            String
-  country             String?
-  role                String    @default("USER")          // USER | ADMIN
-  plan                String    @default("FREE")          // FREE | HUB | COACHING_8WEEK | COACHING_12WEEK | COACHING_LONGTERM
-  planStatus          String    @default("PENDING")       // PENDING | ACTIVE | EXPIRED | CANCELLED
-  unitPreference      String    @default("METRIC")        // METRIC | IMPERIAL
-  isActive            Boolean   @default(true)
-  paymentScreenshot   String?                              // base64 image
-  paymentAccountName  String?
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  passwordHash          String
+  firstName             String
+  lastName              String
+  country               String?
+  role                  String    @default("USER")
+  plan                  String    @default("FREE")
+  planStatus            String    @default("PENDING")
+  unitPreference        String    @default("METRIC")
+  isActive              Boolean   @default(true)
+  paymentScreenshot     String?
+  paymentAccountName    String?
   paymentTransactionRef String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  lastLoginAt         DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  lastLoginAt           DateTime?
 
-  weightLogs          WeightLog[]
-  progressPhotos      ProgressPhoto[]
-  mealLogs            MealLog[]
-  macroTarget         UserMacroTarget?
-  assets              Asset[]
-  favourites          Favourite[]
-  sentMessages        Message[]  @relation("SentMessages")
-  receivedMessages    Message[]  @relation("ReceivedMessages")
-
-  // Coaching application fields (merged — only filled if applying for coaching)
-  coachingExperienceLevel   String?
-  coachingTrainingFrequency Int?
-  coachingTrainingStyles    String?   // JSON
-  coachingHealthConditions  String?
-  coachingPrimaryGoal       String?
-  coachingTimeframe         String?
-  coachingIdealOutcome      String?
-  coachingOccupation        String?
-  coachingWorkSchedule      String?
-  coachingAvailableDays     String?   // JSON
-  coachingGymAccess         String?
-  coachingCurrentDiet       String?
-  coachingFoodRestrictions  String?
-  coachingReferralSource    String?
-  coachingWhyCoaching       String?
-  coachingAdditionalInfo    String?
-  coachingAdminNotes        String?
-  coachingReviewedAt        DateTime?
+  weightLogs            WeightLog[]
+  progressPhotos        ProgressPhoto[]
+  mealLogs              MealLog[]
+  macroTarget           UserMacroTarget?
+  assets                Asset[]
+  favourites            Favourite[]
+  restaurantFavourites  RestaurantFavourite[]
+  sentMessages          Message[]       @relation("SentMessages")
+  receivedMessages      Message[]       @relation("ReceivedMessages")
+  posts                 Post[]
+  postLikes             PostLike[]
+  postComments          PostComment[]
 }
 
 // ─── Message ─────────────────────────────────────────────────────────
@@ -65,6 +49,7 @@ model Message {
   senderId   String
   receiverId String
   content    String
+  imageData  String?  // base64 encoded image (optional)
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -73,6 +58,48 @@ model Message {
 
   @@index([senderId, receiverId])
   @@index([receiverId, isRead])
+}
+
+// ─── Social Feed ─────────────────────────────────────────────────────
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  authorId  String
+  content   String
+  mediaType String?   // "youtube" | "reel" | "image" | null
+  mediaUrl  String?   // YouTube URL, reel URL, or base64 image
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     PostLike[]
+  comments  PostComment[]
+
+  @@index([createdAt])
+}
+
+model PostLike {
+  id     Int    @id @default(autoincrement())
+  postId Int
+  userId String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model PostComment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
 }
 
 // ─── Recipe & Related ────────────────────────────────────────────────
@@ -87,9 +114,9 @@ model RecipeCategory {
 }
 
 model DietaryTag {
-  id      Int    @id @default(autoincrement())
+  id      Int                @id @default(autoincrement())
   name    String
-  slug    String @unique
+  slug    String             @unique
   recipes RecipeDietaryTag[]
 }
 
@@ -99,8 +126,8 @@ model Recipe {
   slug         String   @unique
   description  String
   categoryId   Int
-  ingredients  String   // JSON string
-  instructions String   // JSON string
+  ingredients  String
+  instructions String
   videoUrl     String?
   imageUrl     String?
   calories     Int
@@ -129,7 +156,7 @@ model RecipeDietaryTag {
   @@id([recipeId, tagId])
 }
 
-// ─── Favourite ───────────────────────────────────────────────────────
+// ─── Favourites ──────────────────────────────────────────────────────
 
 model Favourite {
   id       Int    @id @default(autoincrement())
@@ -140,6 +167,15 @@ model Favourite {
   @@unique([userId, recipeId])
 }
 
+model RestaurantFavourite {
+  id           Int             @id @default(autoincrement())
+  userId       String
+  restaurantId Int
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant   RestaurantGuide @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  @@unique([userId, restaurantId])
+}
+
 // ─── Testimonial ─────────────────────────────────────────────────────
 
 model Testimonial {
@@ -147,7 +183,7 @@ model Testimonial {
   clientName   String
   duration     String
   quote        String
-  category     String   @default("hub") // hub | coaching
+  category     String   @default("hub")
   profilePhoto String?
   beforePhoto  String?
   afterPhoto   String?
@@ -161,16 +197,55 @@ model Testimonial {
 // ─── Restaurant Guide ────────────────────────────────────────────────
 
 model RestaurantGuide {
-  id           Int      @id @default(autoincrement())
+  id           Int                   @id @default(autoincrement())
   name         String
-  slug         String   @unique
+  slug         String                @unique
   logoUrl      String?
   introduction String
   tips         String?
-  menuItems    String   // JSON string
-  isPublished  Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  menuItems    String
+  isPublished  Boolean               @default(false)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  favourites   RestaurantFavourite[]
+}
+
+// ─── Workout Videos ──────────────────────────────────────────────────
+
+model WorkoutCategory {
+  id            Int                  @id @default(autoincrement())
+  name          String
+  slug          String               @unique
+  displayOrder  Int                  @default(0)
+  subcategories WorkoutSubcategory[]
+}
+
+model WorkoutSubcategory {
+  id         Int             @id @default(autoincrement())
+  name       String
+  slug       String          @unique
+  categoryId Int
+  category   WorkoutCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  workouts   Workout[]
+}
+
+model Workout {
+  id            Int                @id @default(autoincrement())
+  title         String
+  slug          String             @unique
+  description   String
+  videoUrl      String
+  instructions  String             // JSON array
+  subcategoryId Int
+  difficulty    String             @default("Intermediate")
+  duration      String?
+  targetGoal    String?
+  isPublished   Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  subcategory   WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
+
+  @@index([subcategoryId, isPublished])
 }
 
 // ─── User Tracking ───────────────────────────────────────────────────
@@ -211,17 +286,6 @@ model MealLog {
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, loggedDate])
-}
-
-// ─── Newsletter ──────────────────────────────────────────────────────
-
-model NewsletterSubscriber {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  firstName String?
-  lastName  String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
 }
 
 // ─── Site Content ────────────────────────────────────────────────────
