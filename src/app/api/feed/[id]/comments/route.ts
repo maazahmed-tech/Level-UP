@@ -95,3 +95,54 @@ export async function POST(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const postId = parseInt(id, 10);
+    if (isNaN(postId)) {
+      return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const commentId = parseInt(searchParams.get("commentId") || "", 10);
+    if (isNaN(commentId)) {
+      return NextResponse.json(
+        { error: "Invalid comment ID" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the comment belongs to this post
+    const comment = await prisma.postComment.findFirst({
+      where: { id: commentId, postId },
+    });
+
+    if (!comment) {
+      return NextResponse.json(
+        { error: "Comment not found" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.postComment.delete({
+      where: { id: commentId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Comments DELETE error:", error);
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
+    );
+  }
+}

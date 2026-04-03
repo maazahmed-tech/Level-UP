@@ -28,18 +28,35 @@ model User {
   updatedAt             DateTime  @updatedAt
   lastLoginAt           DateTime?
 
-  weightLogs            WeightLog[]
-  progressPhotos        ProgressPhoto[]
-  mealLogs              MealLog[]
-  macroTarget           UserMacroTarget?
-  assets                Asset[]
-  favourites            Favourite[]
-  restaurantFavourites  RestaurantFavourite[]
-  sentMessages          Message[]       @relation("SentMessages")
-  receivedMessages      Message[]       @relation("ReceivedMessages")
-  posts                 Post[]
-  postLikes             PostLike[]
-  postComments          PostComment[]
+  // Health profile fields
+  age              Int?
+  gender           String?   // male | female
+  heightCm         Float?
+  currentWeightKg  Float?
+  bodyFatPercent    Float?
+  fitnessGoal      String?   // fat_loss | muscle_gain | maintenance | recomposition
+  activityLevel    String?   // sedentary | light | moderate | active | very_active
+  dietaryPrefs     String?   // JSON array
+  healthConditions String?   // JSON array
+  targetWeightKg   Float?
+
+  // Relations
+  weightLogs           WeightLog[]
+  progressPhotos       ProgressPhoto[]
+  mealLogs             MealLog[]
+  macroTarget          UserMacroTarget?
+  assets               Asset[]
+  favourites           Favourite[]
+  restaurantFavourites RestaurantFavourite[]
+  sentMessages         Message[]          @relation("SentMessages")
+  receivedMessages     Message[]          @relation("ReceivedMessages")
+  posts                Post[]
+  postLikes            PostLike[]
+  postComments         PostComment[]
+  stepLogs             StepLog[]
+  bodyMeasurements     BodyMeasurement[]
+  notifications        Notification[]
+  reminders            UserReminder[]
 }
 
 // ─── Message ─────────────────────────────────────────────────────────
@@ -49,7 +66,7 @@ model Message {
   senderId   String
   receiverId String
   content    String
-  imageData  String?  // base64 encoded image (optional)
+  imageData  String?
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -66,8 +83,8 @@ model Post {
   id        Int       @id @default(autoincrement())
   authorId  String
   content   String
-  mediaType String?   // "youtube" | "reel" | "image" | null
-  mediaUrl  String?   // YouTube URL, reel URL, or base64 image
+  mediaType String?
+  mediaUrl  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -235,7 +252,7 @@ model Workout {
   slug          String             @unique
   description   String
   videoUrl      String
-  instructions  String             // JSON array
+  instructions  String
   subcategoryId Int
   difficulty    String             @default("Intermediate")
   duration      String?
@@ -246,6 +263,87 @@ model Workout {
   subcategory   WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
 
   @@index([subcategoryId, isPublished])
+}
+
+// ─── Food Database ───────────────────────────────────────────────────
+
+model FoodItem {
+  id              Int      @id @default(autoincrement())
+  name            String
+  category        String   // Proteins, Carbs, Dairy, Vegetables, Fruits, Fats, Grains, Beverages, Snacks, Condiments
+  subcategory     String?
+  caloriesPer100g Int
+  proteinPer100g  Float
+  carbsPer100g    Float
+  fatPer100g      Float
+  fiberPer100g    Float?
+  servingSize     Int?     // default serving in grams
+  servingUnit     String?  // cup, piece, tbsp, etc.
+  isVerified      Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([category])
+  @@index([name])
+}
+
+// ─── Step Tracker ────────────────────────────────────────────────────
+
+model StepLog {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  steps      Int
+  goal       Int      @default(10000)
+  loggedDate DateTime
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, loggedDate])
+  @@index([userId, loggedDate])
+}
+
+// ─── Body Measurements ───────────────────────────────────────────────
+
+model BodyMeasurement {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  loggedDate  DateTime
+  weightKg    Float?
+  bellyInches Float?
+  chestInches Float?
+  waistInches Float?
+  hipsInches  Float?
+  armsInches  Float?
+  imageData   String?  // progress photo
+  notes       String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, loggedDate])
+  @@index([userId, loggedDate])
+}
+
+// ─── Notifications ───────────────────────────────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("system") // meal_reminder | admin_alert | system | achievement
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model UserReminder {
+  id      Int     @id @default(autoincrement())
+  userId  String
+  type    String  // breakfast | lunch | dinner | snack | sleep | wakeup
+  time    String  // HH:MM format
+  enabled Boolean @default(true)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
 }
 
 // ─── User Tracking ───────────────────────────────────────────────────
@@ -280,6 +378,8 @@ model MealLog {
   protein     Float
   carbs       Float
   fat         Float
+  imageData   String?  // meal photo (base64)
+  ingredients String?  // JSON: [{foodItemId, name, weightGrams, calories, protein, carbs, fat}]
   loggedDate  DateTime
   loggedTime  String
   createdAt   DateTime @default(now())

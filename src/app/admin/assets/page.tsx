@@ -1,137 +1,188 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface Asset {
   id: number;
   filename: string;
-  type: string;
-  size: string;
-  uploaded: string;
-  url: string;
+  data: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: string;
 }
 
-const MOCK_ASSETS: Asset[] = [
-  { id: 1, filename: "hero-banner.jpg", type: "image", size: "2.4 MB", uploaded: "2026-03-15", url: "/images/hero-banner.jpg" },
-  { id: 2, filename: "transformation-mark.jpg", type: "image", size: "1.8 MB", uploaded: "2026-03-12", url: "/images/transformation-mark.jpg" },
-  { id: 3, filename: "transformation-sarah.jpg", type: "image", size: "1.6 MB", uploaded: "2026-03-12", url: "/images/transformation-sarah.jpg" },
-  { id: 4, filename: "logo.svg", type: "image", size: "12 KB", uploaded: "2026-02-01", url: "/images/logo.svg" },
-  { id: 5, filename: "og-image.png", type: "image", size: "856 KB", uploaded: "2026-02-01", url: "/images/og-image.png" },
-  { id: 6, filename: "raheel-about.jpg", type: "image", size: "3.1 MB", uploaded: "2026-01-20", url: "/images/raheel-about.jpg" },
-  { id: 7, filename: "recipe-pancakes.jpg", type: "image", size: "980 KB", uploaded: "2026-03-01", url: "/images/recipe-pancakes.jpg" },
-  { id: 8, filename: "recipe-wrap.jpg", type: "image", size: "1.1 MB", uploaded: "2026-03-01", url: "/images/recipe-wrap.jpg" },
-];
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1048576).toFixed(1) + " MB";
+}
 
-export default function AdminAssetsPage() {
-  const [assets, setAssets] = useState<Asset[]>(MOCK_ASSETS);
+export default function AssetsPage() {
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  function handleUploadClick() {
-    fileInputRef.current?.click();
+  useEffect(() => {
+    fetchAssets();
+  }, []);
+
+  async function fetchAssets() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/assets");
+      const data = await res.json();
+      setAssets(data.assets || []);
+    } catch {
+      console.error("Failed to fetch assets");
+    }
+    setLoading(false);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    // Mock upload
-    setTimeout(() => {
-      const newAsset: Asset = {
-        id: Date.now(),
-        filename: file.name,
-        type: "image",
-        size: `${(file.size / 1024).toFixed(0)} KB`,
-        uploaded: new Date().toISOString().split("T")[0],
-        url: `/images/${file.name}`,
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        await fetch("/api/admin/assets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            data: base64,
+            fileSize: file.size,
+            mimeType: file.type,
+          }),
+        });
+        setUploading(false);
+        fetchAssets();
       };
-      setAssets((prev) => [newAsset, ...prev]);
+      reader.readAsDataURL(file);
+    } catch {
+      alert("Upload failed");
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }, 1000);
+    }
+    // Reset file input
+    if (fileRef.current) fileRef.current.value = "";
   }
 
-  function handleDelete(id: number) {
-    setAssets((prev) => prev.filter((a) => a.id !== id));
+  async function handleDelete(id: number) {
+    if (!confirm("Delete this asset?")) return;
+    try {
+      await fetch(`/api/admin/assets/${id}`, { method: "DELETE" });
+      fetchAssets();
+    } catch {
+      alert("Failed to delete");
+    }
   }
 
-  function handleCopyUrl(asset: Asset) {
-    navigator.clipboard.writeText(asset.url);
-    setCopiedId(asset.id);
-    setTimeout(() => setCopiedId(null), 2000);
+  function copyDataUrl(data: string) {
+    navigator.clipboard.writeText(data);
+    alert("Copied to clipboard");
   }
 
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString("en-IE", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-white">Assets</h1>
+      <div className="flex items-center justify-between">
         <div>
+          <h1 className="text-2xl font-bold text-white">Assets</h1>
+          <p className="text-sm text-white/50 mt-1">
+            {assets.length} files uploaded
+          </p>
+        </div>
+        <label
+          className={`px-4 py-2 bg-[#E51A1A] text-white rounded-lg font-medium hover:bg-[#E51A1A]/90 transition cursor-pointer ${
+            uploading ? "opacity-50 pointer-events-none" : ""
+          }`}
+        >
+          {uploading ? "Uploading..." : "+ Upload"}
           <input
-            ref={fileInputRef}
+            ref={fileRef}
             type="file"
-            accept="image/*"
-            onChange={handleFileChange}
+            accept="image/*,video/*,application/pdf"
+            onChange={handleUpload}
             className="hidden"
           />
-          <button
-            onClick={handleUploadClick}
-            disabled={uploading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer border-none disabled:opacity-50"
-          >
-            {uploading ? "Uploading..." : "+ Upload Asset"}
-          </button>
+        </label>
+      </div>
+
+      {/* Grid */}
+      {assets.length === 0 ? (
+        <p className="text-center text-white/40 py-16">
+          No assets uploaded yet.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {assets.map((asset) => (
+            <div
+              key={asset.id}
+              className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#E51A1A]/30 transition"
+            >
+              {/* Preview */}
+              <div className="aspect-video bg-[#0A0A0A] flex items-center justify-center">
+                {asset.mimeType.startsWith("image/") ? (
+                  <img
+                    src={asset.data}
+                    alt={asset.filename}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-white/30">
+                    <p className="text-2xl mb-1">
+                      {asset.mimeType.includes("pdf") ? "PDF" : "FILE"}
+                    </p>
+                    <p className="text-xs">{asset.mimeType}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="p-3">
+                <p className="text-sm text-white font-medium truncate">
+                  {asset.filename}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] text-white/40">
+                    {formatBytes(asset.fileSize)}
+                  </span>
+                  <span className="text-[10px] text-white/40">
+                    {new Date(asset.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => copyDataUrl(asset.data)}
+                    className="flex-1 px-2 py-1.5 bg-[#2A2A2A] text-white/70 text-xs rounded-lg hover:bg-[#333] transition"
+                  >
+                    Copy URL
+                  </button>
+                  <button
+                    onClick={() => handleDelete(asset.id)}
+                    className="px-2 py-1.5 bg-red-900/30 text-red-400 text-xs rounded-lg hover:bg-red-900/50 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-
-      <p className="text-sm text-white/50">{assets.length} assets</p>
-
-      {/* Grid of asset cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {assets.map((asset) => (
-          <div key={asset.id} className="bg-[#1E1E1E] rounded-2xl shadow-card overflow-hidden flex flex-col">
-            {/* Preview placeholder */}
-            <div className="h-36 bg-dark/5 flex items-center justify-center">
-              <span className="text-4xl opacity-30">{"\uD83D\uDDBC"}</span>
-            </div>
-
-            <div className="p-4 flex flex-col gap-2 flex-1">
-              <p className="font-medium text-sm text-white truncate" title={asset.filename}>
-                {asset.filename}
-              </p>
-              <div className="flex items-center gap-3 text-xs text-white/40">
-                <span>{asset.size}</span>
-                <span>{formatDate(asset.uploaded)}</span>
-              </div>
-
-              <div className="flex gap-2 mt-auto pt-2">
-                <button
-                  onClick={() => handleCopyUrl(asset)}
-                  className="flex-1 text-xs px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors cursor-pointer border-none"
-                >
-                  {copiedId === asset.id ? "Copied!" : "Copy URL"}
-                </button>
-                <button
-                  onClick={() => handleDelete(asset.id)}
-                  className="text-xs px-3 py-1.5 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors cursor-pointer border-none"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      )}
     </div>
   );
 }

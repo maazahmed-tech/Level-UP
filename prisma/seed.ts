@@ -1183,11 +1183,609 @@ Having helped hundreds of people across Ireland and internationally achieve thei
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // FOOD DATABASE (200+ items)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  console.log("\n🍎 Seeding food database...");
+
+  const foodItems = [
+    // ── Proteins (25 items) ──────────────────────────────────────────────
+    { name: "Chicken Breast", category: "Proteins", caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6, servingSize: 150, servingUnit: "piece" },
+    { name: "Egg (Whole)", category: "Proteins", caloriesPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, servingSize: 60, servingUnit: "piece" },
+    { name: "Salmon Fillet", category: "Proteins", caloriesPer100g: 208, proteinPer100g: 20, carbsPer100g: 0, fatPer100g: 13, servingSize: 150, servingUnit: "fillet" },
+    { name: "Turkey Breast", category: "Proteins", caloriesPer100g: 135, proteinPer100g: 30, carbsPer100g: 0, fatPer100g: 1, servingSize: 150, servingUnit: "piece" },
+    { name: "Tuna (Canned in Water)", category: "Proteins", caloriesPer100g: 132, proteinPer100g: 28, carbsPer100g: 0, fatPer100g: 1.3, servingSize: 80, servingUnit: "tin" },
+    { name: "Beef Mince (Lean 5%)", category: "Proteins", caloriesPer100g: 176, proteinPer100g: 20, carbsPer100g: 0, fatPer100g: 10, servingSize: 125, servingUnit: "portion" },
+    { name: "Prawns", category: "Proteins", caloriesPer100g: 99, proteinPer100g: 24, carbsPer100g: 0.2, fatPer100g: 0.3, servingSize: 100, servingUnit: "portion" },
+    { name: "Tofu (Firm)", category: "Proteins", caloriesPer100g: 76, proteinPer100g: 8, carbsPer100g: 1.9, fatPer100g: 4.8, servingSize: 125, servingUnit: "block" },
+    { name: "Greek Yogurt 0%", category: "Proteins", subcategory: "Dairy Protein", caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.7, servingSize: 170, servingUnit: "pot" },
+    { name: "Cottage Cheese", category: "Proteins", subcategory: "Dairy Protein", caloriesPer100g: 98, proteinPer100g: 11, carbsPer100g: 3.4, fatPer100g: 4.3, servingSize: 100, servingUnit: "portion" },
+    { name: "Whey Protein Powder", category: "Proteins", subcategory: "Supplement", caloriesPer100g: 380, proteinPer100g: 80, carbsPer100g: 5, fatPer100g: 3, servingSize: 30, servingUnit: "scoop" },
+    { name: "Chicken Thigh (Skinless)", category: "Proteins", caloriesPer100g: 177, proteinPer100g: 24, carbsPer100g: 0, fatPer100g: 8.5, servingSize: 120, servingUnit: "piece" },
+    { name: "Pork Loin", category: "Proteins", caloriesPer100g: 143, proteinPer100g: 27, carbsPer100g: 0, fatPer100g: 3.5, servingSize: 150, servingUnit: "piece" },
+    { name: "Lamb Mince", category: "Proteins", caloriesPer100g: 235, proteinPer100g: 18, carbsPer100g: 0, fatPer100g: 18, servingSize: 125, servingUnit: "portion" },
+    { name: "Cod Fillet", category: "Proteins", caloriesPer100g: 82, proteinPer100g: 18, carbsPer100g: 0, fatPer100g: 0.7, servingSize: 150, servingUnit: "fillet" },
+    { name: "Egg White", category: "Proteins", caloriesPer100g: 52, proteinPer100g: 11, carbsPer100g: 0.7, fatPer100g: 0.2, servingSize: 33, servingUnit: "piece" },
+    { name: "Beef Steak (Sirloin)", category: "Proteins", caloriesPer100g: 206, proteinPer100g: 26, carbsPer100g: 0, fatPer100g: 11, servingSize: 200, servingUnit: "piece" },
+    { name: "Smoked Salmon", category: "Proteins", caloriesPer100g: 117, proteinPer100g: 18, carbsPer100g: 0, fatPer100g: 4.5, servingSize: 50, servingUnit: "portion" },
+    { name: "Tempeh", category: "Proteins", subcategory: "Plant Protein", caloriesPer100g: 192, proteinPer100g: 20, carbsPer100g: 8, fatPer100g: 11, servingSize: 100, servingUnit: "portion" },
+    { name: "Seitan", category: "Proteins", subcategory: "Plant Protein", caloriesPer100g: 370, proteinPer100g: 75, carbsPer100g: 14, fatPer100g: 2, servingSize: 85, servingUnit: "portion" },
+    { name: "Duck Breast", category: "Proteins", caloriesPer100g: 201, proteinPer100g: 19, carbsPer100g: 0, fatPer100g: 13, servingSize: 175, servingUnit: "piece" },
+    { name: "Mackerel", category: "Proteins", caloriesPer100g: 205, proteinPer100g: 19, carbsPer100g: 0, fatPer100g: 14, servingSize: 100, servingUnit: "fillet" },
+    { name: "Sardines (Canned)", category: "Proteins", caloriesPer100g: 208, proteinPer100g: 25, carbsPer100g: 0, fatPer100g: 11, servingSize: 85, servingUnit: "tin" },
+    { name: "Venison", category: "Proteins", caloriesPer100g: 158, proteinPer100g: 30, carbsPer100g: 0, fatPer100g: 3.4, servingSize: 150, servingUnit: "portion" },
+    { name: "Casein Protein Powder", category: "Proteins", subcategory: "Supplement", caloriesPer100g: 360, proteinPer100g: 75, carbsPer100g: 8, fatPer100g: 2, servingSize: 30, servingUnit: "scoop" },
+
+    // ── Carbs (22 items) ────────────────────────────────────────────────
+    { name: "White Rice (Cooked)", category: "Carbs", caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3, servingSize: 185, servingUnit: "cup" },
+    { name: "Brown Rice (Cooked)", category: "Carbs", caloriesPer100g: 123, proteinPer100g: 2.6, carbsPer100g: 26, fatPer100g: 1, servingSize: 185, servingUnit: "cup" },
+    { name: "Oats (Dry)", category: "Carbs", caloriesPer100g: 389, proteinPer100g: 17, carbsPer100g: 66, fatPer100g: 7, servingSize: 40, servingUnit: "portion" },
+    { name: "Sweet Potato", category: "Carbs", caloriesPer100g: 86, proteinPer100g: 1.6, carbsPer100g: 20, fatPer100g: 0.1, servingSize: 200, servingUnit: "piece" },
+    { name: "White Potato", category: "Carbs", caloriesPer100g: 77, proteinPer100g: 2, carbsPer100g: 17, fatPer100g: 0.1, servingSize: 175, servingUnit: "piece" },
+    { name: "White Bread", category: "Carbs", caloriesPer100g: 265, proteinPer100g: 9, carbsPer100g: 49, fatPer100g: 3.2, servingSize: 36, servingUnit: "slice" },
+    { name: "Wholemeal Bread", category: "Carbs", caloriesPer100g: 247, proteinPer100g: 13, carbsPer100g: 41, fatPer100g: 3.4, servingSize: 36, servingUnit: "slice" },
+    { name: "Pasta (Cooked)", category: "Carbs", caloriesPer100g: 131, proteinPer100g: 5, carbsPer100g: 25, fatPer100g: 1.1, servingSize: 180, servingUnit: "portion" },
+    { name: "Banana", category: "Carbs", subcategory: "Fruit", caloriesPer100g: 89, proteinPer100g: 1.1, carbsPer100g: 23, fatPer100g: 0.3, servingSize: 120, servingUnit: "piece" },
+    { name: "Basmati Rice (Cooked)", category: "Carbs", caloriesPer100g: 121, proteinPer100g: 3.5, carbsPer100g: 25, fatPer100g: 0.4, servingSize: 185, servingUnit: "cup" },
+    { name: "Naan Bread", category: "Carbs", caloriesPer100g: 310, proteinPer100g: 9, carbsPer100g: 50, fatPer100g: 9, servingSize: 90, servingUnit: "piece" },
+    { name: "Wrap (Tortilla)", category: "Carbs", caloriesPer100g: 306, proteinPer100g: 8, carbsPer100g: 50, fatPer100g: 8, servingSize: 62, servingUnit: "piece" },
+    { name: "Bagel", category: "Carbs", caloriesPer100g: 257, proteinPer100g: 10, carbsPer100g: 50, fatPer100g: 1.5, servingSize: 90, servingUnit: "piece" },
+    { name: "Couscous (Cooked)", category: "Carbs", caloriesPer100g: 112, proteinPer100g: 3.8, carbsPer100g: 23, fatPer100g: 0.2, servingSize: 160, servingUnit: "cup" },
+    { name: "Sourdough Bread", category: "Carbs", caloriesPer100g: 259, proteinPer100g: 8, carbsPer100g: 51, fatPer100g: 1.6, servingSize: 45, servingUnit: "slice" },
+    { name: "Rice Noodles (Cooked)", category: "Carbs", caloriesPer100g: 109, proteinPer100g: 0.9, carbsPer100g: 25, fatPer100g: 0.2, servingSize: 175, servingUnit: "portion" },
+    { name: "Pitta Bread", category: "Carbs", caloriesPer100g: 275, proteinPer100g: 9, carbsPer100g: 55, fatPer100g: 1.2, servingSize: 65, servingUnit: "piece" },
+    { name: "Corn on the Cob", category: "Carbs", caloriesPer100g: 86, proteinPer100g: 3.2, carbsPer100g: 19, fatPer100g: 1.2, servingSize: 200, servingUnit: "piece" },
+    { name: "Muesli", category: "Carbs", caloriesPer100g: 340, proteinPer100g: 10, carbsPer100g: 56, fatPer100g: 8, servingSize: 50, servingUnit: "portion" },
+    { name: "Granola", category: "Carbs", caloriesPer100g: 471, proteinPer100g: 10, carbsPer100g: 64, fatPer100g: 20, servingSize: 45, servingUnit: "portion" },
+    { name: "Crumpet", category: "Carbs", caloriesPer100g: 198, proteinPer100g: 6, carbsPer100g: 38, fatPer100g: 1, servingSize: 55, servingUnit: "piece" },
+    { name: "Jasmine Rice (Cooked)", category: "Carbs", caloriesPer100g: 129, proteinPer100g: 2.5, carbsPer100g: 28, fatPer100g: 0.3, servingSize: 185, servingUnit: "cup" },
+
+    // ── Dairy (12 items) ────────────────────────────────────────────────
+    { name: "Whole Milk", category: "Dairy", caloriesPer100g: 61, proteinPer100g: 3.2, carbsPer100g: 4.8, fatPer100g: 3.3, servingSize: 250, servingUnit: "glass" },
+    { name: "Semi-Skimmed Milk", category: "Dairy", caloriesPer100g: 46, proteinPer100g: 3.4, carbsPer100g: 4.8, fatPer100g: 1.7, servingSize: 250, servingUnit: "glass" },
+    { name: "Skimmed Milk", category: "Dairy", caloriesPer100g: 34, proteinPer100g: 3.4, carbsPer100g: 5, fatPer100g: 0.1, servingSize: 250, servingUnit: "glass" },
+    { name: "Cheddar Cheese", category: "Dairy", caloriesPer100g: 403, proteinPer100g: 25, carbsPer100g: 1.3, fatPer100g: 33, servingSize: 30, servingUnit: "slice" },
+    { name: "Mozzarella", category: "Dairy", caloriesPer100g: 280, proteinPer100g: 28, carbsPer100g: 3.1, fatPer100g: 17, servingSize: 125, servingUnit: "ball" },
+    { name: "Feta Cheese", category: "Dairy", caloriesPer100g: 264, proteinPer100g: 14, carbsPer100g: 4, fatPer100g: 21, servingSize: 30, servingUnit: "portion" },
+    { name: "Parmesan", category: "Dairy", caloriesPer100g: 431, proteinPer100g: 38, carbsPer100g: 3.2, fatPer100g: 29, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Cream Cheese", category: "Dairy", caloriesPer100g: 342, proteinPer100g: 6, carbsPer100g: 4, fatPer100g: 34, servingSize: 30, servingUnit: "portion" },
+    { name: "Double Cream", category: "Dairy", caloriesPer100g: 449, proteinPer100g: 1.7, carbsPer100g: 2.8, fatPer100g: 48, servingSize: 30, servingUnit: "tbsp" },
+    { name: "Butter", category: "Dairy", caloriesPer100g: 717, proteinPer100g: 0.9, carbsPer100g: 0.1, fatPer100g: 81, servingSize: 10, servingUnit: "pat" },
+    { name: "Halloumi", category: "Dairy", caloriesPer100g: 316, proteinPer100g: 21, carbsPer100g: 2.6, fatPer100g: 25, servingSize: 80, servingUnit: "portion" },
+    { name: "Natural Yogurt", category: "Dairy", caloriesPer100g: 63, proteinPer100g: 5, carbsPer100g: 7, fatPer100g: 1.5, servingSize: 150, servingUnit: "pot" },
+
+    // ── Vegetables (20 items) ───────────────────────────────────────────
+    { name: "Broccoli", category: "Vegetables", caloriesPer100g: 34, proteinPer100g: 2.8, carbsPer100g: 7, fatPer100g: 0.4, servingSize: 80, servingUnit: "portion" },
+    { name: "Spinach (Raw)", category: "Vegetables", caloriesPer100g: 23, proteinPer100g: 2.9, carbsPer100g: 3.6, fatPer100g: 0.4, servingSize: 30, servingUnit: "handful" },
+    { name: "Tomato", category: "Vegetables", caloriesPer100g: 18, proteinPer100g: 0.9, carbsPer100g: 3.9, fatPer100g: 0.2, servingSize: 125, servingUnit: "piece" },
+    { name: "Onion", category: "Vegetables", caloriesPer100g: 40, proteinPer100g: 1.1, carbsPer100g: 9.3, fatPer100g: 0.1, servingSize: 150, servingUnit: "piece" },
+    { name: "Bell Pepper", category: "Vegetables", caloriesPer100g: 20, proteinPer100g: 0.9, carbsPer100g: 4.6, fatPer100g: 0.2, servingSize: 160, servingUnit: "piece" },
+    { name: "Carrot", category: "Vegetables", caloriesPer100g: 41, proteinPer100g: 0.9, carbsPer100g: 10, fatPer100g: 0.2, servingSize: 80, servingUnit: "piece" },
+    { name: "Mushroom", category: "Vegetables", caloriesPer100g: 22, proteinPer100g: 3.1, carbsPer100g: 3.3, fatPer100g: 0.3, servingSize: 70, servingUnit: "portion" },
+    { name: "Avocado", category: "Vegetables", subcategory: "Fruit Veg", caloriesPer100g: 160, proteinPer100g: 2, carbsPer100g: 9, fatPer100g: 15, servingSize: 80, servingUnit: "half" },
+    { name: "Courgette (Zucchini)", category: "Vegetables", caloriesPer100g: 17, proteinPer100g: 1.2, carbsPer100g: 3.1, fatPer100g: 0.3, servingSize: 130, servingUnit: "piece" },
+    { name: "Cucumber", category: "Vegetables", caloriesPer100g: 15, proteinPer100g: 0.7, carbsPer100g: 3.6, fatPer100g: 0.1, servingSize: 80, servingUnit: "portion" },
+    { name: "Cauliflower", category: "Vegetables", caloriesPer100g: 25, proteinPer100g: 1.9, carbsPer100g: 5, fatPer100g: 0.3, servingSize: 80, servingUnit: "portion" },
+    { name: "Green Beans", category: "Vegetables", caloriesPer100g: 31, proteinPer100g: 1.8, carbsPer100g: 7, fatPer100g: 0.2, servingSize: 80, servingUnit: "portion" },
+    { name: "Asparagus", category: "Vegetables", caloriesPer100g: 20, proteinPer100g: 2.2, carbsPer100g: 3.9, fatPer100g: 0.1, servingSize: 80, servingUnit: "portion" },
+    { name: "Kale", category: "Vegetables", caloriesPer100g: 49, proteinPer100g: 4.3, carbsPer100g: 9, fatPer100g: 0.9, servingSize: 30, servingUnit: "handful" },
+    { name: "Lettuce (Iceberg)", category: "Vegetables", caloriesPer100g: 14, proteinPer100g: 0.9, carbsPer100g: 3, fatPer100g: 0.1, servingSize: 50, servingUnit: "portion" },
+    { name: "Sweetcorn (Tinned)", category: "Vegetables", caloriesPer100g: 64, proteinPer100g: 2.3, carbsPer100g: 14, fatPer100g: 0.5, servingSize: 80, servingUnit: "portion" },
+    { name: "Peas (Frozen)", category: "Vegetables", caloriesPer100g: 81, proteinPer100g: 5.4, carbsPer100g: 14, fatPer100g: 0.4, servingSize: 80, servingUnit: "portion" },
+    { name: "Celery", category: "Vegetables", caloriesPer100g: 16, proteinPer100g: 0.7, carbsPer100g: 3, fatPer100g: 0.2, servingSize: 40, servingUnit: "stick" },
+    { name: "Aubergine (Eggplant)", category: "Vegetables", caloriesPer100g: 25, proteinPer100g: 1, carbsPer100g: 6, fatPer100g: 0.2, servingSize: 200, servingUnit: "piece" },
+    { name: "Butternut Squash", category: "Vegetables", caloriesPer100g: 45, proteinPer100g: 1, carbsPer100g: 12, fatPer100g: 0.1, servingSize: 150, servingUnit: "portion" },
+
+    // ── Fruits (15 items) ───────────────────────────────────────────────
+    { name: "Apple", category: "Fruits", caloriesPer100g: 52, proteinPer100g: 0.3, carbsPer100g: 14, fatPer100g: 0.2, servingSize: 180, servingUnit: "piece" },
+    { name: "Orange", category: "Fruits", caloriesPer100g: 47, proteinPer100g: 0.9, carbsPer100g: 12, fatPer100g: 0.1, servingSize: 150, servingUnit: "piece" },
+    { name: "Strawberries", category: "Fruits", caloriesPer100g: 32, proteinPer100g: 0.7, carbsPer100g: 8, fatPer100g: 0.3, servingSize: 140, servingUnit: "cup" },
+    { name: "Blueberries", category: "Fruits", caloriesPer100g: 57, proteinPer100g: 0.7, carbsPer100g: 14, fatPer100g: 0.3, servingSize: 140, servingUnit: "cup" },
+    { name: "Raspberries", category: "Fruits", caloriesPer100g: 52, proteinPer100g: 1.2, carbsPer100g: 12, fatPer100g: 0.7, servingSize: 125, servingUnit: "cup" },
+    { name: "Grapes", category: "Fruits", caloriesPer100g: 69, proteinPer100g: 0.7, carbsPer100g: 18, fatPer100g: 0.2, servingSize: 75, servingUnit: "handful" },
+    { name: "Mango", category: "Fruits", caloriesPer100g: 60, proteinPer100g: 0.8, carbsPer100g: 15, fatPer100g: 0.4, servingSize: 165, servingUnit: "cup" },
+    { name: "Pineapple", category: "Fruits", caloriesPer100g: 50, proteinPer100g: 0.5, carbsPer100g: 13, fatPer100g: 0.1, servingSize: 165, servingUnit: "cup" },
+    { name: "Watermelon", category: "Fruits", caloriesPer100g: 30, proteinPer100g: 0.6, carbsPer100g: 8, fatPer100g: 0.2, servingSize: 280, servingUnit: "slice" },
+    { name: "Pear", category: "Fruits", caloriesPer100g: 57, proteinPer100g: 0.4, carbsPer100g: 15, fatPer100g: 0.1, servingSize: 180, servingUnit: "piece" },
+    { name: "Kiwi", category: "Fruits", caloriesPer100g: 61, proteinPer100g: 1.1, carbsPer100g: 15, fatPer100g: 0.5, servingSize: 75, servingUnit: "piece" },
+    { name: "Peach", category: "Fruits", caloriesPer100g: 39, proteinPer100g: 0.9, carbsPer100g: 10, fatPer100g: 0.3, servingSize: 150, servingUnit: "piece" },
+    { name: "Cherries", category: "Fruits", caloriesPer100g: 63, proteinPer100g: 1.1, carbsPer100g: 16, fatPer100g: 0.2, servingSize: 100, servingUnit: "handful" },
+    { name: "Dates (Medjool)", category: "Fruits", caloriesPer100g: 277, proteinPer100g: 1.8, carbsPer100g: 75, fatPer100g: 0.2, servingSize: 24, servingUnit: "piece" },
+    { name: "Dried Cranberries", category: "Fruits", caloriesPer100g: 308, proteinPer100g: 0.1, carbsPer100g: 82, fatPer100g: 1.4, servingSize: 30, servingUnit: "portion" },
+
+    // ── Fats & Oils (12 items) ──────────────────────────────────────────
+    { name: "Olive Oil", category: "Fats & Oils", caloriesPer100g: 884, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100, servingSize: 14, servingUnit: "tbsp" },
+    { name: "Peanut Butter", category: "Fats & Oils", caloriesPer100g: 588, proteinPer100g: 25, carbsPer100g: 20, fatPer100g: 50, servingSize: 32, servingUnit: "tbsp" },
+    { name: "Almonds", category: "Fats & Oils", subcategory: "Nuts", caloriesPer100g: 579, proteinPer100g: 21, carbsPer100g: 22, fatPer100g: 50, servingSize: 30, servingUnit: "handful" },
+    { name: "Walnuts", category: "Fats & Oils", subcategory: "Nuts", caloriesPer100g: 654, proteinPer100g: 15, carbsPer100g: 14, fatPer100g: 65, servingSize: 30, servingUnit: "handful" },
+    { name: "Coconut Oil", category: "Fats & Oils", caloriesPer100g: 862, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100, servingSize: 14, servingUnit: "tbsp" },
+    { name: "Cashew Nuts", category: "Fats & Oils", subcategory: "Nuts", caloriesPer100g: 553, proteinPer100g: 18, carbsPer100g: 30, fatPer100g: 44, servingSize: 30, servingUnit: "handful" },
+    { name: "Chia Seeds", category: "Fats & Oils", subcategory: "Seeds", caloriesPer100g: 486, proteinPer100g: 17, carbsPer100g: 42, fatPer100g: 31, fiberPer100g: 34, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Flaxseeds", category: "Fats & Oils", subcategory: "Seeds", caloriesPer100g: 534, proteinPer100g: 18, carbsPer100g: 29, fatPer100g: 42, fiberPer100g: 27, servingSize: 10, servingUnit: "tbsp" },
+    { name: "Sunflower Seeds", category: "Fats & Oils", subcategory: "Seeds", caloriesPer100g: 584, proteinPer100g: 21, carbsPer100g: 20, fatPer100g: 51, servingSize: 30, servingUnit: "handful" },
+    { name: "Almond Butter", category: "Fats & Oils", caloriesPer100g: 614, proteinPer100g: 21, carbsPer100g: 19, fatPer100g: 56, servingSize: 32, servingUnit: "tbsp" },
+    { name: "Tahini", category: "Fats & Oils", caloriesPer100g: 595, proteinPer100g: 17, carbsPer100g: 21, fatPer100g: 54, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Mixed Nuts", category: "Fats & Oils", subcategory: "Nuts", caloriesPer100g: 607, proteinPer100g: 20, carbsPer100g: 21, fatPer100g: 54, servingSize: 30, servingUnit: "handful" },
+
+    // ── Grains (8 items) ────────────────────────────────────────────────
+    { name: "Quinoa (Cooked)", category: "Grains", caloriesPer100g: 120, proteinPer100g: 4.4, carbsPer100g: 21, fatPer100g: 1.9, servingSize: 185, servingUnit: "cup" },
+    { name: "Bulgur Wheat (Cooked)", category: "Grains", caloriesPer100g: 83, proteinPer100g: 3.1, carbsPer100g: 19, fatPer100g: 0.2, servingSize: 180, servingUnit: "cup" },
+    { name: "Pearl Barley (Cooked)", category: "Grains", caloriesPer100g: 123, proteinPer100g: 2.3, carbsPer100g: 28, fatPer100g: 0.4, servingSize: 160, servingUnit: "cup" },
+    { name: "Buckwheat (Cooked)", category: "Grains", caloriesPer100g: 92, proteinPer100g: 3.4, carbsPer100g: 20, fatPer100g: 0.6, servingSize: 170, servingUnit: "cup" },
+    { name: "Freekeh (Cooked)", category: "Grains", caloriesPer100g: 101, proteinPer100g: 3.5, carbsPer100g: 20, fatPer100g: 0.5, servingSize: 180, servingUnit: "cup" },
+    { name: "Lentils (Cooked)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 116, proteinPer100g: 9, carbsPer100g: 20, fatPer100g: 0.4, servingSize: 100, servingUnit: "portion" },
+    { name: "Chickpeas (Tinned)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 119, proteinPer100g: 7, carbsPer100g: 20, fatPer100g: 2.1, servingSize: 120, servingUnit: "portion" },
+    { name: "Black Beans (Tinned)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 132, proteinPer100g: 9, carbsPer100g: 24, fatPer100g: 0.5, servingSize: 120, servingUnit: "portion" },
+
+    // ── Beverages (8 items) ─────────────────────────────────────────────
+    { name: "Orange Juice", category: "Beverages", caloriesPer100g: 45, proteinPer100g: 0.7, carbsPer100g: 10, fatPer100g: 0.2, servingSize: 250, servingUnit: "glass" },
+    { name: "Apple Juice", category: "Beverages", caloriesPer100g: 46, proteinPer100g: 0.1, carbsPer100g: 11, fatPer100g: 0.1, servingSize: 250, servingUnit: "glass" },
+    { name: "Protein Shake (Typical)", category: "Beverages", subcategory: "Supplement", caloriesPer100g: 70, proteinPer100g: 12, carbsPer100g: 3, fatPer100g: 1, servingSize: 300, servingUnit: "glass" },
+    { name: "Oat Milk", category: "Beverages", caloriesPer100g: 46, proteinPer100g: 1, carbsPer100g: 7, fatPer100g: 1.5, servingSize: 250, servingUnit: "glass" },
+    { name: "Almond Milk (Unsweetened)", category: "Beverages", caloriesPer100g: 15, proteinPer100g: 0.6, carbsPer100g: 0.3, fatPer100g: 1.1, servingSize: 250, servingUnit: "glass" },
+    { name: "Soy Milk", category: "Beverages", caloriesPer100g: 33, proteinPer100g: 2.8, carbsPer100g: 1.2, fatPer100g: 1.8, servingSize: 250, servingUnit: "glass" },
+    { name: "Coconut Water", category: "Beverages", caloriesPer100g: 19, proteinPer100g: 0.7, carbsPer100g: 3.7, fatPer100g: 0.2, servingSize: 330, servingUnit: "carton" },
+    { name: "Sports Drink", category: "Beverages", caloriesPer100g: 26, proteinPer100g: 0, carbsPer100g: 6.4, fatPer100g: 0, servingSize: 500, servingUnit: "bottle" },
+
+    // ── Snacks (10 items) ───────────────────────────────────────────────
+    { name: "Rice Cakes", category: "Snacks", caloriesPer100g: 387, proteinPer100g: 8, carbsPer100g: 82, fatPer100g: 2.8, servingSize: 9, servingUnit: "piece" },
+    { name: "Dark Chocolate (70%)", category: "Snacks", caloriesPer100g: 598, proteinPer100g: 8, carbsPer100g: 46, fatPer100g: 43, servingSize: 25, servingUnit: "piece" },
+    { name: "Popcorn (Plain Air-Popped)", category: "Snacks", caloriesPer100g: 375, proteinPer100g: 11, carbsPer100g: 74, fatPer100g: 4.3, servingSize: 30, servingUnit: "portion" },
+    { name: "Protein Bar (Typical)", category: "Snacks", subcategory: "Supplement", caloriesPer100g: 350, proteinPer100g: 30, carbsPer100g: 35, fatPer100g: 10, servingSize: 60, servingUnit: "bar" },
+    { name: "Trail Mix", category: "Snacks", caloriesPer100g: 462, proteinPer100g: 14, carbsPer100g: 44, fatPer100g: 29, servingSize: 40, servingUnit: "handful" },
+    { name: "Beef Jerky", category: "Snacks", caloriesPer100g: 410, proteinPer100g: 55, carbsPer100g: 11, fatPer100g: 15, servingSize: 30, servingUnit: "portion" },
+    { name: "Hummus", category: "Snacks", caloriesPer100g: 166, proteinPer100g: 8, carbsPer100g: 14, fatPer100g: 10, servingSize: 30, servingUnit: "tbsp" },
+    { name: "Oatcakes", category: "Snacks", caloriesPer100g: 433, proteinPer100g: 10, carbsPer100g: 63, fatPer100g: 16, servingSize: 13, servingUnit: "piece" },
+    { name: "Dried Mango", category: "Snacks", caloriesPer100g: 319, proteinPer100g: 2.4, carbsPer100g: 78, fatPer100g: 1.2, servingSize: 40, servingUnit: "portion" },
+    { name: "Edamame Beans", category: "Snacks", caloriesPer100g: 121, proteinPer100g: 12, carbsPer100g: 9, fatPer100g: 5, servingSize: 80, servingUnit: "portion" },
+
+    // ── Condiments (10 items) ───────────────────────────────────────────
+    { name: "Honey", category: "Condiments", caloriesPer100g: 304, proteinPer100g: 0.3, carbsPer100g: 82, fatPer100g: 0, servingSize: 21, servingUnit: "tbsp" },
+    { name: "Soy Sauce", category: "Condiments", caloriesPer100g: 53, proteinPer100g: 8, carbsPer100g: 4.9, fatPer100g: 0.6, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Ketchup", category: "Condiments", caloriesPer100g: 112, proteinPer100g: 1.7, carbsPer100g: 26, fatPer100g: 0.1, servingSize: 17, servingUnit: "tbsp" },
+    { name: "Mayonnaise", category: "Condiments", caloriesPer100g: 680, proteinPer100g: 1.1, carbsPer100g: 0.6, fatPer100g: 75, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Mustard", category: "Condiments", caloriesPer100g: 66, proteinPer100g: 4, carbsPer100g: 5, fatPer100g: 3.3, servingSize: 5, servingUnit: "tsp" },
+    { name: "Hot Sauce", category: "Condiments", caloriesPer100g: 11, proteinPer100g: 0.5, carbsPer100g: 1.8, fatPer100g: 0.4, servingSize: 5, servingUnit: "tsp" },
+    { name: "Balsamic Vinegar", category: "Condiments", caloriesPer100g: 88, proteinPer100g: 0.5, carbsPer100g: 17, fatPer100g: 0, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Maple Syrup", category: "Condiments", caloriesPer100g: 260, proteinPer100g: 0, carbsPer100g: 67, fatPer100g: 0.1, servingSize: 20, servingUnit: "tbsp" },
+    { name: "Fish Sauce", category: "Condiments", caloriesPer100g: 35, proteinPer100g: 5.1, carbsPer100g: 3.6, fatPer100g: 0, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Miso Paste", category: "Condiments", caloriesPer100g: 199, proteinPer100g: 12, carbsPer100g: 26, fatPer100g: 6, servingSize: 18, servingUnit: "tbsp" },
+
+    // ── Extra items to reach 200+ ───────────────────────────────────────
+    { name: "Coconut Yogurt", category: "Dairy", caloriesPer100g: 115, proteinPer100g: 0.9, carbsPer100g: 6, fatPer100g: 9, servingSize: 150, servingUnit: "pot" },
+    { name: "Ricotta", category: "Dairy", caloriesPer100g: 174, proteinPer100g: 11, carbsPer100g: 3, fatPer100g: 13, servingSize: 60, servingUnit: "portion" },
+    { name: "Brie", category: "Dairy", caloriesPer100g: 334, proteinPer100g: 21, carbsPer100g: 0.5, fatPer100g: 28, servingSize: 30, servingUnit: "portion" },
+    { name: "Cottage Pie Mince", category: "Proteins", caloriesPer100g: 118, proteinPer100g: 14, carbsPer100g: 4, fatPer100g: 5, servingSize: 200, servingUnit: "portion" },
+    { name: "Turkey Mince", category: "Proteins", caloriesPer100g: 148, proteinPer100g: 27, carbsPer100g: 0, fatPer100g: 4, servingSize: 125, servingUnit: "portion" },
+    { name: "Haddock Fillet", category: "Proteins", caloriesPer100g: 90, proteinPer100g: 21, carbsPer100g: 0, fatPer100g: 0.6, servingSize: 150, servingUnit: "fillet" },
+    { name: "Quorn Mince", category: "Proteins", subcategory: "Plant Protein", caloriesPer100g: 86, proteinPer100g: 11, carbsPer100g: 5, fatPer100g: 2, servingSize: 100, servingUnit: "portion" },
+    { name: "Beetroot", category: "Vegetables", caloriesPer100g: 43, proteinPer100g: 1.6, carbsPer100g: 10, fatPer100g: 0.2, servingSize: 80, servingUnit: "piece" },
+    { name: "Radish", category: "Vegetables", caloriesPer100g: 16, proteinPer100g: 0.7, carbsPer100g: 3.4, fatPer100g: 0.1, servingSize: 30, servingUnit: "portion" },
+    { name: "Spring Onion", category: "Vegetables", caloriesPer100g: 32, proteinPer100g: 1.8, carbsPer100g: 7, fatPer100g: 0.2, servingSize: 15, servingUnit: "piece" },
+    { name: "Cabbage", category: "Vegetables", caloriesPer100g: 25, proteinPer100g: 1.3, carbsPer100g: 6, fatPer100g: 0.1, servingSize: 80, servingUnit: "portion" },
+    { name: "Leek", category: "Vegetables", caloriesPer100g: 61, proteinPer100g: 1.5, carbsPer100g: 14, fatPer100g: 0.3, servingSize: 150, servingUnit: "piece" },
+    { name: "Ginger Root", category: "Condiments", caloriesPer100g: 80, proteinPer100g: 1.8, carbsPer100g: 18, fatPer100g: 0.8, servingSize: 5, servingUnit: "tsp" },
+    { name: "Garlic", category: "Condiments", caloriesPer100g: 149, proteinPer100g: 6.4, carbsPer100g: 33, fatPer100g: 0.5, servingSize: 4, servingUnit: "clove" },
+    { name: "Pesto (Basil)", category: "Condiments", caloriesPer100g: 387, proteinPer100g: 5, carbsPer100g: 6, fatPer100g: 38, servingSize: 20, servingUnit: "tbsp" },
+
+    // ── Extra Proteins ──────────────────────────────────────────────────
+    { name: "Chicken Wings", category: "Proteins", caloriesPer100g: 203, proteinPer100g: 18, carbsPer100g: 0, fatPer100g: 14, servingSize: 100, servingUnit: "portion" },
+    { name: "Pork Belly", category: "Proteins", caloriesPer100g: 518, proteinPer100g: 9, carbsPer100g: 0, fatPer100g: 53, servingSize: 100, servingUnit: "portion" },
+    { name: "Liver (Chicken)", category: "Proteins", caloriesPer100g: 119, proteinPer100g: 17, carbsPer100g: 0.7, fatPer100g: 5, servingSize: 100, servingUnit: "portion" },
+    { name: "Crab Meat", category: "Proteins", caloriesPer100g: 97, proteinPer100g: 19, carbsPer100g: 0, fatPer100g: 1.5, servingSize: 85, servingUnit: "tin" },
+    { name: "Scallops", category: "Proteins", caloriesPer100g: 111, proteinPer100g: 21, carbsPer100g: 3, fatPer100g: 1, servingSize: 85, servingUnit: "portion" },
+    { name: "Mussels", category: "Proteins", caloriesPer100g: 86, proteinPer100g: 12, carbsPer100g: 3.7, fatPer100g: 2.2, servingSize: 100, servingUnit: "portion" },
+    { name: "Bison Steak", category: "Proteins", caloriesPer100g: 143, proteinPer100g: 28, carbsPer100g: 0, fatPer100g: 2.4, servingSize: 150, servingUnit: "piece" },
+    { name: "Rabbit", category: "Proteins", caloriesPer100g: 173, proteinPer100g: 33, carbsPer100g: 0, fatPer100g: 3.5, servingSize: 150, servingUnit: "portion" },
+    // ── Extra Carbs ─────────────────────────────────────────────────────
+    { name: "Rye Bread", category: "Carbs", caloriesPer100g: 259, proteinPer100g: 9, carbsPer100g: 48, fatPer100g: 3.3, servingSize: 32, servingUnit: "slice" },
+    { name: "English Muffin", category: "Carbs", caloriesPer100g: 227, proteinPer100g: 8, carbsPer100g: 44, fatPer100g: 1.8, servingSize: 57, servingUnit: "piece" },
+    { name: "Potato Wedges (Baked)", category: "Carbs", caloriesPer100g: 130, proteinPer100g: 2.5, carbsPer100g: 22, fatPer100g: 3.8, servingSize: 150, servingUnit: "portion" },
+    { name: "Egg Noodles (Cooked)", category: "Carbs", caloriesPer100g: 138, proteinPer100g: 4.5, carbsPer100g: 25, fatPer100g: 2.1, servingSize: 160, servingUnit: "portion" },
+    { name: "Soba Noodles (Cooked)", category: "Carbs", caloriesPer100g: 99, proteinPer100g: 5, carbsPer100g: 21, fatPer100g: 0.1, servingSize: 175, servingUnit: "portion" },
+    { name: "Pancake Mix (Prepared)", category: "Carbs", caloriesPer100g: 227, proteinPer100g: 6, carbsPer100g: 35, fatPer100g: 7, servingSize: 77, servingUnit: "piece" },
+    // ── Extra Vegetables ────────────────────────────────────────────────
+    { name: "Brussels Sprouts", category: "Vegetables", caloriesPer100g: 43, proteinPer100g: 3.4, carbsPer100g: 9, fatPer100g: 0.3, servingSize: 80, servingUnit: "portion" },
+    { name: "Artichoke", category: "Vegetables", caloriesPer100g: 47, proteinPer100g: 3.3, carbsPer100g: 11, fatPer100g: 0.2, servingSize: 120, servingUnit: "piece" },
+    { name: "Turnip", category: "Vegetables", caloriesPer100g: 28, proteinPer100g: 0.9, carbsPer100g: 6, fatPer100g: 0.1, servingSize: 130, servingUnit: "piece" },
+    { name: "Parsnip", category: "Vegetables", caloriesPer100g: 75, proteinPer100g: 1.2, carbsPer100g: 18, fatPer100g: 0.3, servingSize: 80, servingUnit: "piece" },
+    { name: "Fennel", category: "Vegetables", caloriesPer100g: 31, proteinPer100g: 1.2, carbsPer100g: 7, fatPer100g: 0.2, servingSize: 87, servingUnit: "bulb" },
+    { name: "Okra", category: "Vegetables", caloriesPer100g: 33, proteinPer100g: 1.9, carbsPer100g: 7, fatPer100g: 0.2, servingSize: 80, servingUnit: "portion" },
+    { name: "Swiss Chard", category: "Vegetables", caloriesPer100g: 19, proteinPer100g: 1.8, carbsPer100g: 3.7, fatPer100g: 0.2, servingSize: 36, servingUnit: "cup" },
+    { name: "Pak Choi (Bok Choy)", category: "Vegetables", caloriesPer100g: 13, proteinPer100g: 1.5, carbsPer100g: 2.2, fatPer100g: 0.2, servingSize: 70, servingUnit: "cup" },
+    // ── Extra Fruits ────────────────────────────────────────────────────
+    { name: "Grapefruit", category: "Fruits", caloriesPer100g: 42, proteinPer100g: 0.8, carbsPer100g: 11, fatPer100g: 0.1, servingSize: 230, servingUnit: "piece" },
+    { name: "Plum", category: "Fruits", caloriesPer100g: 46, proteinPer100g: 0.7, carbsPer100g: 11, fatPer100g: 0.3, servingSize: 66, servingUnit: "piece" },
+    { name: "Pomegranate Seeds", category: "Fruits", caloriesPer100g: 83, proteinPer100g: 1.7, carbsPer100g: 19, fatPer100g: 1.2, servingSize: 87, servingUnit: "portion" },
+    { name: "Lychee", category: "Fruits", caloriesPer100g: 66, proteinPer100g: 0.8, carbsPer100g: 17, fatPer100g: 0.4, servingSize: 100, servingUnit: "portion" },
+    { name: "Passion Fruit", category: "Fruits", caloriesPer100g: 97, proteinPer100g: 2.2, carbsPer100g: 23, fatPer100g: 0.7, servingSize: 18, servingUnit: "piece" },
+    { name: "Fig (Fresh)", category: "Fruits", caloriesPer100g: 74, proteinPer100g: 0.8, carbsPer100g: 19, fatPer100g: 0.3, servingSize: 50, servingUnit: "piece" },
+    // ── Extra Grains / Legumes ──────────────────────────────────────────
+    { name: "Red Kidney Beans (Tinned)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 127, proteinPer100g: 9, carbsPer100g: 22, fatPer100g: 0.5, servingSize: 120, servingUnit: "portion" },
+    { name: "Butter Beans (Tinned)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 77, proteinPer100g: 5, carbsPer100g: 13, fatPer100g: 0.3, servingSize: 120, servingUnit: "portion" },
+    { name: "Cannellini Beans (Tinned)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 91, proteinPer100g: 6, carbsPer100g: 16, fatPer100g: 0.3, servingSize: 120, servingUnit: "portion" },
+    { name: "Green Lentils (Cooked)", category: "Grains", subcategory: "Legumes", caloriesPer100g: 105, proteinPer100g: 9, carbsPer100g: 17, fatPer100g: 0.4, servingSize: 100, servingUnit: "portion" },
+    { name: "Amaranth (Cooked)", category: "Grains", caloriesPer100g: 102, proteinPer100g: 3.8, carbsPer100g: 19, fatPer100g: 1.6, servingSize: 130, servingUnit: "cup" },
+    { name: "Millet (Cooked)", category: "Grains", caloriesPer100g: 119, proteinPer100g: 3.5, carbsPer100g: 23, fatPer100g: 1, servingSize: 175, servingUnit: "cup" },
+    { name: "Spelt (Cooked)", category: "Grains", caloriesPer100g: 127, proteinPer100g: 5.5, carbsPer100g: 26, fatPer100g: 0.9, servingSize: 180, servingUnit: "cup" },
+    // ── Extra Snacks ────────────────────────────────────────────────────
+    { name: "Milk Chocolate", category: "Snacks", caloriesPer100g: 535, proteinPer100g: 8, carbsPer100g: 59, fatPer100g: 30, servingSize: 25, servingUnit: "piece" },
+    { name: "Peanuts (Roasted)", category: "Snacks", caloriesPer100g: 567, proteinPer100g: 26, carbsPer100g: 16, fatPer100g: 49, servingSize: 30, servingUnit: "handful" },
+    { name: "Dried Apricots", category: "Snacks", caloriesPer100g: 241, proteinPer100g: 3.4, carbsPer100g: 63, fatPer100g: 0.5, servingSize: 30, servingUnit: "portion" },
+    { name: "Raisins", category: "Snacks", caloriesPer100g: 299, proteinPer100g: 3.1, carbsPer100g: 79, fatPer100g: 0.5, servingSize: 30, servingUnit: "portion" },
+    { name: "Pretzels", category: "Snacks", caloriesPer100g: 380, proteinPer100g: 9, carbsPer100g: 80, fatPer100g: 3.5, servingSize: 30, servingUnit: "portion" },
+    { name: "Crackers (Water)", category: "Snacks", caloriesPer100g: 392, proteinPer100g: 9, carbsPer100g: 74, fatPer100g: 8, servingSize: 15, servingUnit: "piece" },
+    // ── Extra Condiments ────────────────────────────────────────────────
+    { name: "Sriracha", category: "Condiments", caloriesPer100g: 93, proteinPer100g: 2, carbsPer100g: 19, fatPer100g: 1, servingSize: 5, servingUnit: "tsp" },
+    { name: "Worcestershire Sauce", category: "Condiments", caloriesPer100g: 78, proteinPer100g: 1, carbsPer100g: 19, fatPer100g: 0, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Hoisin Sauce", category: "Condiments", caloriesPer100g: 220, proteinPer100g: 3, carbsPer100g: 44, fatPer100g: 3.4, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Sweet Chilli Sauce", category: "Condiments", caloriesPer100g: 224, proteinPer100g: 0.6, carbsPer100g: 53, fatPer100g: 0.3, servingSize: 15, servingUnit: "tbsp" },
+    { name: "Coconut Cream", category: "Condiments", caloriesPer100g: 330, proteinPer100g: 3, carbsPer100g: 7, fatPer100g: 33, servingSize: 60, servingUnit: "portion" },
+    { name: "BBQ Sauce", category: "Condiments", caloriesPer100g: 172, proteinPer100g: 1, carbsPer100g: 40, fatPer100g: 0.6, servingSize: 17, servingUnit: "tbsp" },
+  ];
+
+  // Use createMany for speed, skip duplicates
+  let foodCount = 0;
+  for (const f of foodItems) {
+    try {
+      await prisma.foodItem.upsert({
+        where: { id: 0 }, // force create path
+        update: {},
+        create: {
+          name: f.name,
+          category: f.category,
+          subcategory: (f as any).subcategory || null,
+          caloriesPer100g: f.caloriesPer100g,
+          proteinPer100g: f.proteinPer100g,
+          carbsPer100g: f.carbsPer100g,
+          fatPer100g: f.fatPer100g,
+          fiberPer100g: (f as any).fiberPer100g || null,
+          servingSize: f.servingSize || null,
+          servingUnit: f.servingUnit || null,
+          isVerified: true,
+        },
+      });
+      foodCount++;
+    } catch {
+      // Skip duplicates
+    }
+  }
+  console.log(`   ✅ ${foodCount} food items created`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5 DEMO USERS WITH 3 MONTHS OF DATA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  console.log("\n👥 Creating demo users with 3 months of data...");
+
+  const demoUsers = [
+    {
+      email: "sarah@demo.com",
+      firstName: "Sarah",
+      lastName: "Mitchell",
+      age: 28,
+      gender: "female",
+      heightCm: 168,
+      startWeight: 75,
+      endWeight: 67,
+      fitnessGoal: "fat_loss",
+      activityLevel: "moderate",
+      targetWeightKg: 65,
+      macros: { calories: 1650, protein: 140, carbs: 150, fat: 55 },
+    },
+    {
+      email: "james@demo.com",
+      firstName: "James",
+      lastName: "O'Brien",
+      age: 34,
+      gender: "male",
+      heightCm: 183,
+      startWeight: 95,
+      endWeight: 83,
+      fitnessGoal: "fat_loss",
+      activityLevel: "active",
+      targetWeightKg: 80,
+      macros: { calories: 2100, protein: 180, carbs: 200, fat: 65 },
+    },
+    {
+      email: "priya@demo.com",
+      firstName: "Priya",
+      lastName: "Sharma",
+      age: 25,
+      gender: "female",
+      heightCm: 162,
+      startWeight: 62,
+      endWeight: 61.5,
+      fitnessGoal: "maintenance",
+      activityLevel: "moderate",
+      targetWeightKg: 61,
+      macros: { calories: 1900, protein: 120, carbs: 210, fat: 60 },
+    },
+    {
+      email: "liam@demo.com",
+      firstName: "Liam",
+      lastName: "Dunne",
+      age: 41,
+      gender: "male",
+      heightCm: 176,
+      startWeight: 78,
+      endWeight: 82,
+      fitnessGoal: "muscle_gain",
+      activityLevel: "very_active",
+      targetWeightKg: 85,
+      macros: { calories: 2800, protein: 200, carbs: 300, fat: 80 },
+    },
+    {
+      email: "aoife@demo.com",
+      firstName: "Aoife",
+      lastName: "Kelly",
+      age: 31,
+      gender: "female",
+      heightCm: 170,
+      startWeight: 68,
+      endWeight: 65,
+      fitnessGoal: "recomposition",
+      activityLevel: "active",
+      targetWeightKg: 64,
+      macros: { calories: 1800, protein: 150, carbs: 170, fat: 60 },
+    },
+  ];
+
+  // Helper: random float with variation
+  function randVar(base: number, variance: number): number {
+    return Math.round((base + (Math.random() - 0.5) * 2 * variance) * 10) / 10;
+  }
+
+  // Meal templates per type
+  const mealTemplates = {
+    Breakfast: [
+      { desc: "Protein Oats with Berries", cal: 420, p: 35, c: 48, f: 10 },
+      { desc: "Scrambled Eggs on Toast", cal: 380, p: 24, c: 30, f: 18 },
+      { desc: "Greek Yogurt with Granola", cal: 350, p: 28, c: 38, f: 10 },
+      { desc: "Overnight Oats with PB", cal: 480, p: 30, c: 52, f: 16 },
+      { desc: "Egg White Omelette with Veggies", cal: 290, p: 30, c: 12, f: 8 },
+      { desc: "Protein Smoothie Bowl", cal: 400, p: 32, c: 44, f: 12 },
+      { desc: "Avocado Toast with Eggs", cal: 450, p: 22, c: 35, f: 25 },
+      { desc: "Banana Pancakes with Honey", cal: 410, p: 20, c: 55, f: 12 },
+    ],
+    Lunch: [
+      { desc: "Grilled Chicken Salad", cal: 480, p: 42, c: 20, f: 22 },
+      { desc: "Turkey Wrap with Veggies", cal: 520, p: 38, c: 45, f: 18 },
+      { desc: "Tuna Rice Bowl", cal: 550, p: 40, c: 55, f: 12 },
+      { desc: "Chicken Caesar Salad", cal: 510, p: 38, c: 22, f: 25 },
+      { desc: "Prawn Stir Fry with Rice", cal: 480, p: 30, c: 52, f: 10 },
+      { desc: "Beef and Bean Burrito Bowl", cal: 580, p: 35, c: 50, f: 22 },
+      { desc: "Salmon with Sweet Potato", cal: 520, p: 35, c: 40, f: 20 },
+      { desc: "Chicken Quesadilla", cal: 500, p: 34, c: 42, f: 18 },
+    ],
+    Dinner: [
+      { desc: "Turkey Meatballs with Pasta", cal: 580, p: 40, c: 55, f: 18 },
+      { desc: "Grilled Salmon with Broccoli", cal: 520, p: 38, c: 18, f: 28 },
+      { desc: "Chicken Stir Fry with Noodles", cal: 550, p: 36, c: 50, f: 16 },
+      { desc: "Lean Beef Burger with Salad", cal: 600, p: 42, c: 35, f: 25 },
+      { desc: "Cod with Roasted Vegetables", cal: 420, p: 34, c: 30, f: 12 },
+      { desc: "Chicken Curry with Rice", cal: 620, p: 38, c: 60, f: 20 },
+      { desc: "Prawn Pasta in Tomato Sauce", cal: 530, p: 30, c: 55, f: 15 },
+      { desc: "Tofu and Vegetable Stir Fry", cal: 400, p: 22, c: 40, f: 16 },
+    ],
+    Snack: [
+      { desc: "Protein Shake", cal: 180, p: 25, c: 8, f: 3 },
+      { desc: "Greek Yogurt with Honey", cal: 160, p: 15, c: 18, f: 3 },
+      { desc: "Apple with Peanut Butter", cal: 250, p: 8, c: 28, f: 14 },
+      { desc: "Rice Cakes with Cottage Cheese", cal: 180, p: 12, c: 22, f: 4 },
+      { desc: "Protein Bar", cal: 220, p: 20, c: 24, f: 7 },
+      { desc: "Almonds and Dark Chocolate", cal: 280, p: 8, c: 18, f: 20 },
+      { desc: "Banana and Whey Shake", cal: 260, p: 28, c: 30, f: 4 },
+      { desc: "Hummus with Carrot Sticks", cal: 150, p: 5, c: 15, f: 8 },
+    ],
+  };
+
+  // Get existing recipes for favourites
+  const allRecipes = await prisma.recipe.findMany({ select: { id: true }, take: 20 });
+
+  const today = new Date();
+
+  for (const du of demoUsers) {
+    // Create user
+    const user = await prisma.user.upsert({
+      where: { email: du.email },
+      update: {},
+      create: {
+        email: du.email,
+        passwordHash: hashSync("demo1234", 12),
+        firstName: du.firstName,
+        lastName: du.lastName,
+        role: "USER",
+        plan: "HUB",
+        planStatus: "ACTIVE",
+        unitPreference: "METRIC",
+        isActive: true,
+        age: du.age,
+        gender: du.gender,
+        heightCm: du.heightCm,
+        currentWeightKg: du.endWeight,
+        fitnessGoal: du.fitnessGoal,
+        activityLevel: du.activityLevel,
+        targetWeightKg: du.targetWeightKg,
+      },
+    });
+    console.log(`   ✅ ${du.firstName} ${du.lastName} (${du.email})`);
+
+    // Macro target
+    await prisma.userMacroTarget.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: {
+        userId: user.id,
+        calories: du.macros.calories,
+        protein: du.macros.protein,
+        carbs: du.macros.carbs,
+        fat: du.macros.fat,
+        goal: du.fitnessGoal,
+      },
+    });
+
+    // 90 days of weight logs
+    const weightRange = du.endWeight - du.startWeight;
+    for (let d = 0; d < 90; d++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - (90 - d));
+      const trend = du.startWeight + (weightRange * d) / 90;
+      const weight = randVar(trend, 0.4);
+      try {
+        await prisma.weightLog.create({
+          data: {
+            userId: user.id,
+            weightKg: weight,
+            loggedDate: date,
+          },
+        });
+      } catch {
+        // skip duplicate
+      }
+    }
+
+    // 90 days of step logs
+    const baseSteps = du.activityLevel === "very_active" ? 12000 : du.activityLevel === "active" ? 10000 : 7500;
+    for (let d = 0; d < 90; d++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - (90 - d));
+      const steps = Math.round(baseSteps + (Math.random() - 0.5) * 5000);
+      try {
+        await prisma.stepLog.create({
+          data: {
+            userId: user.id,
+            steps: Math.max(steps, 2000),
+            goal: 10000,
+            loggedDate: date,
+          },
+        });
+      } catch {
+        // skip duplicate
+      }
+    }
+
+    // 3 body measurements (monthly)
+    for (let m = 0; m < 3; m++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - (90 - m * 30));
+      const progress = m / 2;
+      const w = du.startWeight + weightRange * progress;
+      try {
+        await prisma.bodyMeasurement.create({
+          data: {
+            userId: user.id,
+            loggedDate: date,
+            weightKg: Math.round(w * 10) / 10,
+            bellyInches: randVar(du.gender === "female" ? 30 : 34, 2),
+            chestInches: randVar(du.gender === "female" ? 36 : 40, 2),
+            waistInches: randVar(du.gender === "female" ? 28 : 33, 2),
+            hipsInches: randVar(du.gender === "female" ? 38 : 36, 2),
+            armsInches: randVar(du.gender === "female" ? 11 : 14, 1),
+          },
+        });
+      } catch {
+        // skip duplicate
+      }
+    }
+
+    // ~270 meal logs (3 per day for 90 days)
+    const mealTypes: Array<"Breakfast" | "Lunch" | "Dinner" | "Snack"> = ["Breakfast", "Lunch", "Dinner"];
+    const mealTimes = ["08:00", "13:00", "19:00"];
+    const goalMultiplier = du.fitnessGoal === "fat_loss" ? 0.85 : du.fitnessGoal === "muscle_gain" ? 1.15 : 1.0;
+
+    for (let d = 0; d < 90; d++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - (90 - d));
+
+      for (let mi = 0; mi < 3; mi++) {
+        const mt = mealTypes[mi];
+        const templates = mealTemplates[mt];
+        const tpl = templates[Math.floor(Math.random() * templates.length)];
+        const cal = Math.round(tpl.cal * goalMultiplier + (Math.random() - 0.5) * 60);
+        const pRatio = cal / tpl.cal;
+
+        await prisma.mealLog.create({
+          data: {
+            userId: user.id,
+            description: tpl.desc,
+            mealType: mt,
+            calories: cal,
+            protein: Math.round(tpl.p * pRatio * 10) / 10,
+            carbs: Math.round(tpl.c * pRatio * 10) / 10,
+            fat: Math.round(tpl.f * pRatio * 10) / 10,
+            loggedDate: date,
+            loggedTime: mealTimes[mi],
+          },
+        });
+      }
+
+      // Add snack on ~60% of days
+      if (Math.random() < 0.6) {
+        const snackTemplates = mealTemplates.Snack;
+        const snack = snackTemplates[Math.floor(Math.random() * snackTemplates.length)];
+        await prisma.mealLog.create({
+          data: {
+            userId: user.id,
+            description: snack.desc,
+            mealType: "Snack",
+            calories: Math.round(snack.cal * goalMultiplier),
+            protein: Math.round(snack.p * goalMultiplier * 10) / 10,
+            carbs: Math.round(snack.c * goalMultiplier * 10) / 10,
+            fat: Math.round(snack.f * goalMultiplier * 10) / 10,
+            loggedDate: date,
+            loggedTime: "16:00",
+          },
+        });
+      }
+    }
+
+    // 5 messages with admin
+    const messageTexts = [
+      { from: "user", text: `Hi Coach! I just started the ${du.fitnessGoal.replace("_", " ")} plan.` },
+      { from: "admin", text: `Welcome ${du.firstName}! Great to have you on board. Let's get you started.` },
+      { from: "user", text: "I've been tracking my meals. Am I on the right track?" },
+      { from: "admin", text: "Your consistency is great! Try to hit your protein target every day." },
+      { from: "user", text: "Thanks Coach! I'll keep at it." },
+    ];
+
+    for (let i = 0; i < messageTexts.length; i++) {
+      const msg = messageTexts[i];
+      const msgDate = new Date(today);
+      msgDate.setDate(msgDate.getDate() - 85 + i * 10);
+      await prisma.message.create({
+        data: {
+          senderId: msg.from === "user" ? user.id : admin.id,
+          receiverId: msg.from === "user" ? admin.id : user.id,
+          content: msg.text,
+          isRead: true,
+          createdAt: msgDate,
+        },
+      });
+    }
+
+    // 3-5 favourite recipes
+    if (allRecipes.length > 0) {
+      const numFavs = Math.min(3 + Math.floor(Math.random() * 3), allRecipes.length);
+      const shuffled = [...allRecipes].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < numFavs; i++) {
+        try {
+          await prisma.favourite.create({
+            data: { userId: user.id, recipeId: shuffled[i].id },
+          });
+        } catch {
+          // skip duplicate
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // DONE
   // ═══════════════════════════════════════════════════════════════════════════
 
   console.log("\n🎉 Seeding complete!");
-  console.log("   - 2 users (admin + demo)");
+  console.log("   - 2 users (admin + demo) + 5 demo users");
   console.log("   - 6 recipe categories");
   console.log("   - 5 dietary tags");
   console.log(`   - ${recipesData.length} recipes`);
@@ -1195,6 +1793,8 @@ Having helped hundreds of people across Ireland and internationally achieve thei
   console.log(`   - ${testimonialsData.length} testimonials`);
   console.log("   - 1 payment settings record");
   console.log(`   - ${Object.keys(siteContentData).length} site content entries`);
+  console.log(`   - ${foodItems.length} food items`);
+  console.log("   - 5 demo users x 90 days of tracking data");
 }
 
 main()

@@ -25,6 +25,16 @@ export async function PUT(request: Request) {
       ...(body.lastName && { lastName: body.lastName }),
       ...(body.country !== undefined && { country: body.country }),
       ...(body.unitPreference && { unitPreference: body.unitPreference }),
+      ...(body.age !== undefined && { age: body.age }),
+      ...(body.gender !== undefined && { gender: body.gender }),
+      ...(body.heightCm !== undefined && { heightCm: body.heightCm }),
+      ...(body.currentWeightKg !== undefined && { currentWeightKg: body.currentWeightKg }),
+      ...(body.bodyFatPercent !== undefined && { bodyFatPercent: body.bodyFatPercent }),
+      ...(body.fitnessGoal !== undefined && { fitnessGoal: body.fitnessGoal }),
+      ...(body.activityLevel !== undefined && { activityLevel: body.activityLevel }),
+      ...(body.dietaryPrefs !== undefined && { dietaryPrefs: body.dietaryPrefs }),
+      ...(body.healthConditions !== undefined && { healthConditions: body.healthConditions }),
+      ...(body.targetWeightKg !== undefined && { targetWeightKg: body.targetWeightKg }),
     },
   });
 
@@ -36,6 +46,16 @@ export async function PUT(request: Request) {
       email: updated.email,
       country: updated.country,
       unitPreference: updated.unitPreference,
+      age: updated.age,
+      gender: updated.gender,
+      heightCm: updated.heightCm,
+      currentWeightKg: updated.currentWeightKg,
+      bodyFatPercent: updated.bodyFatPercent,
+      fitnessGoal: updated.fitnessGoal,
+      activityLevel: updated.activityLevel,
+      dietaryPrefs: updated.dietaryPrefs,
+      healthConditions: updated.healthConditions,
+      targetWeightKg: updated.targetWeightKg,
     },
   });
 }

@@ -1,264 +1,215 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback } from "react";
-import Button from "@/components/ui/Button";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-type WeightEntry = { date: string; weight: number };
-type ProgressPhoto = {
-  id: string;
-  date: string;
-  notes: string;
-  url: string;
-  file: File;
+type Measurement = {
+  id: number;
+  loggedDate: string;
+  weightKg: number | null;
+  bellyInches: number | null;
+  chestInches: number | null;
+  waistInches: number | null;
+  hipsInches: number | null;
+  armsInches: number | null;
+  imageData: string | null;
+  notes: string | null;
 };
-
-// ---------------------------------------------------------------------------
-// Sample weight data generator (30 days trending 85 -> ~81 kg)
-// ---------------------------------------------------------------------------
-function generateSampleWeights(): WeightEntry[] {
-  const entries: WeightEntry[] = [];
-  const now = new Date();
-  let weight = 85;
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    // Gentle downward trend with realistic daily fluctuation
-    const trend = -0.14; // ~4 kg over 30 days
-    const fluctuation = (Math.random() - 0.45) * 0.6; // slight bias down
-    weight = Math.round((weight + trend + fluctuation) * 10) / 10;
-    weight = Math.max(weight, 80.5); // floor
-    entries.push({ date: dateStr, weight });
-  }
-  return entries;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function fmtDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}`;
-}
-
-function fmtDateFull(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
+function fmtDate(iso: string) {
+  const [, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}`;
+}
+
+function fmtDateFull(iso: string) {
+  const d = new Date(iso.slice(0, 10) + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 // ---------------------------------------------------------------------------
-// SVG Weight Chart
+// Multi-metric line chart
 // ---------------------------------------------------------------------------
-type ChartProps = { data: WeightEntry[] };
+type MetricKey = "weightKg" | "bellyInches" | "waistInches";
+const METRIC_CONFIG: Record<MetricKey, { label: string; color: string; unit: string }> = {
+  weightKg: { label: "Weight", color: "#E51A1A", unit: "kg" },
+  bellyInches: { label: "Belly", color: "#FF6B00", unit: "in" },
+  waistInches: { label: "Waist", color: "#FFB800", unit: "in" },
+};
 
-function WeightChart({ data }: ChartProps) {
+function MetricChart({ data, metrics }: { data: Measurement[]; metrics: MetricKey[] }) {
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
-    entry: WeightEntry;
+    entry: Measurement;
   } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  if (data.length === 0)
-    return (
-      <p className="text-white/40 text-center py-12">
-        No data to display. Log your first weight entry above.
-      </p>
-    );
+  const sorted = useMemo(
+    () => [...data].sort((a, b) => a.loggedDate.localeCompare(b.loggedDate)),
+    [data]
+  );
 
-  // Dimensions (logical viewBox units)
+  if (sorted.length === 0 || metrics.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-white/30">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" className="mb-3 opacity-40">
+          <path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <p className="text-sm">Not enough data yet. Log your first measurement above.</p>
+      </div>
+    );
+  }
+
   const W = 800;
-  const H = 360;
+  const H = 300;
   const pad = { top: 20, right: 30, bottom: 50, left: 55 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
-  const weights = data.map((d) => d.weight);
-  const minW = Math.floor(Math.min(...weights) - 0.5);
-  const maxW = Math.ceil(Math.max(...weights) + 0.5);
-  const rangeW = maxW - minW || 1;
+  // Per-metric we draw a separate line
+  const lines = metrics.map((key) => {
+    const points = sorted
+      .filter((d) => d[key] !== null && d[key] !== undefined)
+      .map((d, i) => ({ ...d, idx: i, val: d[key] as number }));
+    return { key, points, ...METRIC_CONFIG[key] };
+  });
 
-  const xScale = (i: number) => pad.left + (i / (data.length - 1 || 1)) * cw;
-  const yScale = (w: number) => pad.top + (1 - (w - minW) / rangeW) * ch;
-
-  // Build path
-  const pathD = data
-    .map((d, i) => `${i === 0 ? "M" : "L"} ${xScale(i)} ${yScale(d.weight)}`)
-    .join(" ");
-
-  // Y-axis ticks (5-6 ticks)
-  const yTickCount = 5;
-  const yTicks: number[] = [];
-  for (let t = 0; t <= yTickCount; t++) {
-    yTicks.push(minW + (rangeW / yTickCount) * t);
-  }
-
-  // X-axis ticks (show ~8 labels max)
-  const xStep = Math.max(1, Math.floor(data.length / 8));
-  const xTicks: number[] = [];
-  for (let i = 0; i < data.length; i += xStep) xTicks.push(i);
-  if (xTicks[xTicks.length - 1] !== data.length - 1)
-    xTicks.push(data.length - 1);
+  // Shared x-scale from data indices
+  const xScale = (i: number) => pad.left + (i / Math.max(sorted.length - 1, 1)) * cw;
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!svgRef.current || data.length < 2) return;
+      if (!svgRef.current || sorted.length < 2) return;
       const rect = svgRef.current.getBoundingClientRect();
       const mouseX = ((e.clientX - rect.left) / rect.width) * W;
-      // Find closest point
       let closest = 0;
       let closestDist = Infinity;
-      for (let i = 0; i < data.length; i++) {
+      for (let i = 0; i < sorted.length; i++) {
         const dist = Math.abs(xScale(i) - mouseX);
         if (dist < closestDist) {
           closestDist = dist;
           closest = i;
         }
       }
-      setTooltip({
-        x: xScale(closest),
-        y: yScale(data[closest].weight),
-        entry: data[closest],
-      });
+      setTooltip({ x: xScale(closest), y: pad.top + 10, entry: sorted[closest] });
     },
-    [data]
+    [sorted]
   );
 
   return (
-    <svg
-      ref={svgRef}
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-auto"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setTooltip(null)}
-    >
-      {/* Grid lines */}
-      {yTicks.map((t, i) => (
-        <line
-          key={`yg-${i}`}
-          x1={pad.left}
-          x2={W - pad.right}
-          y1={yScale(t)}
-          y2={yScale(t)}
-          stroke="#e5e5e5"
-          strokeWidth={1}
-        />
-      ))}
+    <div className="relative">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        {/* Grid */}
+        {[0, 0.25, 0.5, 0.75, 1].map((pct) => (
+          <line
+            key={pct}
+            x1={pad.left}
+            x2={W - pad.right}
+            y1={pad.top + ch * (1 - pct)}
+            y2={pad.top + ch * (1 - pct)}
+            stroke="#2A2A2A"
+            strokeWidth={1}
+          />
+        ))}
 
-      {/* Y-axis labels */}
-      {yTicks.map((t, i) => (
-        <text
-          key={`yl-${i}`}
-          x={pad.left - 10}
-          y={yScale(t) + 4}
-          textAnchor="end"
-          fontSize={12}
-          fill="#888"
-        >
-          {t.toFixed(1)}
-        </text>
-      ))}
+        {/* X-axis labels */}
+        {sorted.length > 0 && (() => {
+          const step = Math.max(1, Math.floor(sorted.length / 8));
+          const ticks: number[] = [];
+          for (let i = 0; i < sorted.length; i += step) ticks.push(i);
+          if (ticks[ticks.length - 1] !== sorted.length - 1) ticks.push(sorted.length - 1);
+          return ticks.map((idx) => (
+            <text
+              key={idx}
+              x={xScale(idx)}
+              y={H - pad.bottom + 25}
+              textAnchor="middle"
+              fontSize={12}
+              fill="#888"
+            >
+              {fmtDate(sorted[idx].loggedDate)}
+            </text>
+          ));
+        })()}
 
-      {/* X-axis labels */}
-      {xTicks.map((idx) => (
-        <text
-          key={`xl-${idx}`}
-          x={xScale(idx)}
-          y={H - pad.bottom + 25}
-          textAnchor="middle"
-          fontSize={12}
-          fill="#888"
-        >
-          {fmtDate(data[idx].date)}
-        </text>
-      ))}
+        {/* Lines */}
+        {lines.map((line) => {
+          if (line.points.length < 2) return null;
+          // Find indices in sorted array
+          const allVals = line.points.map((p) => p.val);
+          const minV = Math.min(...allVals);
+          const maxV = Math.max(...allVals);
+          const rangeV = maxV - minV || 1;
+          const yForVal = (v: number) => pad.top + (1 - (v - minV + rangeV * 0.05) / (rangeV * 1.1)) * ch;
 
-      {/* Area fill */}
-      <path
-        d={`${pathD} L ${xScale(data.length - 1)} ${pad.top + ch} L ${pad.left} ${pad.top + ch} Z`}
-        fill="rgba(244,67,54,0.07)"
-      />
+          const pathD = line.points
+            .map((p, i) => {
+              const sortedIdx = sorted.indexOf(p);
+              return `${i === 0 ? "M" : "L"} ${xScale(sortedIdx)} ${yForVal(p.val)}`;
+            })
+            .join(" ");
 
-      {/* Line */}
-      <path
-        d={pathD}
-        fill="none"
-        stroke="#F44336"
-        strokeWidth={2.5}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
+          return (
+            <g key={line.key}>
+              <path d={pathD} fill="none" stroke={line.color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+              {line.points.map((p) => {
+                const sortedIdx = sorted.indexOf(p);
+                return (
+                  <circle
+                    key={`${line.key}-${sortedIdx}`}
+                    cx={xScale(sortedIdx)}
+                    cy={yForVal(p.val)}
+                    r={3.5}
+                    fill={line.color}
+                    stroke="#1E1E1E"
+                    strokeWidth={2}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
 
-      {/* Dots */}
-      {data.map((d, i) => (
-        <circle
-          key={i}
-          cx={xScale(i)}
-          cy={yScale(d.weight)}
-          r={3.5}
-          fill="#F44336"
-          stroke="#fff"
-          strokeWidth={2}
-        />
-      ))}
-
-      {/* Tooltip */}
-      {tooltip && (
-        <g>
+        {/* Tooltip hover line */}
+        {tooltip && (
           <line
             x1={tooltip.x}
             x2={tooltip.x}
             y1={pad.top}
             y2={pad.top + ch}
-            stroke="#F44336"
+            stroke="#E51A1A"
             strokeWidth={1}
             strokeDasharray="4 3"
-            opacity={0.5}
+            opacity={0.4}
           />
-          <circle
-            cx={tooltip.x}
-            cy={tooltip.y}
-            r={6}
-            fill="#F44336"
-            stroke="#fff"
-            strokeWidth={2.5}
-          />
-          <rect
-            x={tooltip.x - 52}
-            y={tooltip.y - 40}
-            width={104}
-            height={28}
-            rx={6}
-            fill="#222"
-          />
-          <text
-            x={tooltip.x}
-            y={tooltip.y - 22}
-            textAnchor="middle"
-            fontSize={12}
-            fontWeight={600}
-            fill="#fff"
-          >
-            {tooltip.entry.weight} kg &middot; {fmtDate(tooltip.entry.date)}
-          </text>
-        </g>
+        )}
+      </svg>
+
+      {/* Tooltip overlay */}
+      {tooltip && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#222] border border-[#2A2A2A] rounded-lg px-3 py-2 text-xs pointer-events-none z-10">
+          <p className="font-semibold text-white mb-1">{fmtDateFull(tooltip.entry.loggedDate)}</p>
+          {tooltip.entry.weightKg !== null && metrics.includes("weightKg") && (
+            <p className="text-white/60">Weight: <span className="text-white font-semibold">{tooltip.entry.weightKg} kg</span></p>
+          )}
+          {tooltip.entry.bellyInches !== null && metrics.includes("bellyInches") && (
+            <p className="text-white/60">Belly: <span className="text-white font-semibold">{tooltip.entry.bellyInches} in</span></p>
+          )}
+          {tooltip.entry.waistInches !== null && metrics.includes("waistInches") && (
+            <p className="text-white/60">Waist: <span className="text-white font-semibold">{tooltip.entry.waistInches} in</span></p>
+          )}
+        </div>
       )}
-    </svg>
+    </div>
   );
 }
 
@@ -266,73 +217,131 @@ function WeightChart({ data }: ChartProps) {
 // Main Page Component
 // ===========================================================================
 export default function ProgressPage() {
-  // Tab state
-  const [activeTab, setActiveTab] = useState<"weight" | "photos">("weight");
+  const [activeTab, setActiveTab] = useState<"measurements" | "photos">("measurements");
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ------ Weight state ------
-  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>(
-    generateSampleWeights
-  );
+  // Log form state
   const [logDate, setLogDate] = useState(todayISO());
   const [logWeight, setLogWeight] = useState("");
-  const [chartRange, setChartRange] = useState<7 | 30 | 90 | 0>(30);
+  const [logBelly, setLogBelly] = useState("");
+  const [logWaist, setLogWaist] = useState("");
+  const [logChest, setLogChest] = useState("");
+  const [logHips, setLogHips] = useState("");
+  const [logArms, setLogArms] = useState("");
+  const [logNotes, setLogNotes] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // ------ Photos state ------
-  const [photos, setPhotos] = useState<ProgressPhoto[]>([]);
+  // Chart metric toggles
+  const [showWeight, setShowWeight] = useState(true);
+  const [showBelly, setShowBelly] = useState(true);
+  const [showWaist, setShowWaist] = useState(false);
+
+  // Photo upload state
   const [photoDate, setPhotoDate] = useState(todayISO());
   const [photoNotes, setPhotoNotes] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
+
+  // Compare mode
   const [compareMode, setCompareMode] = useState(false);
-  const [compareSelection, setCompareSelection] = useState<string[]>([]);
+  const [compareSelection, setCompareSelection] = useState<number[]>([]);
 
-  // ------ Derived weight data ------
+  const fetchMeasurements = useCallback(async () => {
+    try {
+      const res = await fetch("/api/measurements");
+      const data = await res.json();
+      if (data.measurements) setMeasurements(data.measurements);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMeasurements();
+  }, [fetchMeasurements]);
+
   const sorted = useMemo(
-    () => [...weightEntries].sort((a, b) => a.date.localeCompare(b.date)),
-    [weightEntries]
+    () => [...measurements].sort((a, b) => a.loggedDate.localeCompare(b.loggedDate)),
+    [measurements]
   );
-
-  const chartData = useMemo(() => {
-    if (chartRange === 0) return sorted;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - chartRange);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    return sorted.filter((e) => e.date >= cutoffStr);
-  }, [sorted, chartRange]);
-
-  const startWeight = sorted.length > 0 ? sorted[0].weight : null;
-  const currentWeight = sorted.length > 0 ? sorted[sorted.length - 1].weight : null;
-  const totalChange =
-    startWeight !== null && currentWeight !== null
-      ? Math.round((currentWeight - startWeight) * 10) / 10
-      : null;
 
   const tableEntries = useMemo(() => {
     const desc = [...sorted].reverse();
     return desc.map((entry, idx) => {
       const sortedIdx = sorted.length - 1 - idx;
       const prev = sortedIdx > 0 ? sorted[sortedIdx - 1] : null;
-      const change = prev
-        ? Math.round((entry.weight - prev.weight) * 10) / 10
+      const weightChange = prev && entry.weightKg !== null && prev.weightKg !== null
+        ? Math.round((entry.weightKg - prev.weightKg) * 10) / 10
         : null;
-      return { ...entry, change };
+      const bellyChange = prev && entry.bellyInches !== null && prev.bellyInches !== null
+        ? Math.round((entry.bellyInches - prev.bellyInches) * 10) / 10
+        : null;
+      return { ...entry, weightChange, bellyChange };
     });
   }, [sorted]);
 
-  // ------ Handlers ------
-  function handleLogWeight() {
-    const w = parseFloat(logWeight);
-    if (!logDate || isNaN(w) || w <= 0) return;
-    setWeightEntries((prev) => {
-      const filtered = prev.filter((e) => e.date !== logDate);
-      return [...filtered, { date: logDate, weight: w }];
-    });
-    setLogWeight("");
+  // Stats
+  const startWeight = sorted.find((m) => m.weightKg !== null)?.weightKg ?? null;
+  const currentWeight = [...sorted].reverse().find((m) => m.weightKg !== null)?.weightKg ?? null;
+  const startBelly = sorted.find((m) => m.bellyInches !== null)?.bellyInches ?? null;
+  const currentBelly = [...sorted].reverse().find((m) => m.bellyInches !== null)?.bellyInches ?? null;
+
+  // Photos
+  const photosData = useMemo(
+    () => measurements.filter((m) => m.imageData).sort((a, b) => b.loggedDate.localeCompare(a.loggedDate)),
+    [measurements]
+  );
+
+  const activeMetrics: MetricKey[] = [];
+  if (showWeight) activeMetrics.push("weightKg");
+  if (showBelly) activeMetrics.push("bellyInches");
+  if (showWaist) activeMetrics.push("waistInches");
+
+  async function handleLogMeasurement() {
+    if (!logWeight && !logBelly && !logWaist && !logChest && !logHips && !logArms) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = { loggedDate: logDate };
+      if (logWeight) payload.weightKg = parseFloat(logWeight);
+      if (logBelly) payload.bellyInches = parseFloat(logBelly);
+      if (logWaist) payload.waistInches = parseFloat(logWaist);
+      if (logChest) payload.chestInches = parseFloat(logChest);
+      if (logHips) payload.hipsInches = parseFloat(logHips);
+      if (logArms) payload.armsInches = parseFloat(logArms);
+      if (logNotes) payload.notes = logNotes;
+
+      await fetch("/api/measurements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setLogWeight("");
+      setLogBelly("");
+      setLogWaist("");
+      setLogChest("");
+      setLogHips("");
+      setLogArms("");
+      setLogNotes("");
+      await fetchMeasurements();
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDeleteEntry(date: string) {
-    setWeightEntries((prev) => prev.filter((e) => e.date !== date));
+  async function handleDelete(id: number) {
+    try {
+      await fetch(`/api/measurements/${id}`, { method: "DELETE" });
+      await fetchMeasurements();
+    } catch {
+      // ignore
+    }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -342,23 +351,40 @@ export default function ProgressPage() {
     setPreviewUrl(URL.createObjectURL(file));
   }
 
-  function handleUploadPhoto() {
+  async function handleUploadPhoto() {
     if (!photoFile) return;
-    const newPhoto: ProgressPhoto = {
-      id: uid(),
-      date: photoDate,
-      notes: photoNotes,
-      url: URL.createObjectURL(photoFile),
-      file: photoFile,
-    };
-    setPhotos((prev) => [newPhoto, ...prev]);
-    setPhotoFile(null);
-    setPreviewUrl(null);
-    setPhotoNotes("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setPhotoSaving(true);
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(photoFile);
+      });
+
+      await fetch("/api/measurements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loggedDate: photoDate,
+          imageData: base64,
+          notes: photoNotes || undefined,
+        }),
+      });
+
+      setPhotoFile(null);
+      setPreviewUrl(null);
+      setPhotoNotes("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await fetchMeasurements();
+    } catch {
+      // ignore
+    } finally {
+      setPhotoSaving(false);
+    }
   }
 
-  function toggleCompareSelect(id: string) {
+  function toggleCompareSelect(id: number) {
     setCompareSelection((prev) => {
       if (prev.includes(id)) return prev.filter((p) => p !== id);
       if (prev.length >= 2) return [prev[1], id];
@@ -366,209 +392,274 @@ export default function ProgressPage() {
     });
   }
 
-  const selectedPhotos = photos.filter((p) => compareSelection.includes(p.id));
+  const selectedPhotos = photosData.filter((p) => compareSelection.includes(p.id));
 
-  // ------ Render ------
+  const inputCls =
+    "w-full border-2 border-[#2A2A2A] rounded-xl py-2.5 px-4 bg-[#1E1E1E] text-white focus:border-[#E51A1A] focus:outline-none text-sm placeholder:text-white/30";
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-white/30">Loading...</div>;
+  }
+
   return (
     <div>
       <h1 className="text-3xl font-black mb-2">Progress Tracker</h1>
       <p className="text-white/50 mb-6">
-        Log your weight and track your transformation over time.
+        Track your body measurements and transformation over time.
       </p>
 
       {/* Tab Buttons */}
       <div className="flex gap-2 mb-8">
-        {(["weight", "photos"] as const).map((tab) => (
+        {(["measurements", "photos"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-200 cursor-pointer ${
+            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-200 cursor-pointer border-none ${
               activeTab === tab
-                ? "bg-primary text-white shadow-md"
-                : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A] hover:border-[#181818]0"
+                ? "bg-[#E51A1A] text-white shadow-md"
+                : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A]"
             }`}
           >
-            {tab === "weight" ? "Weight" : "Photos"}
+            {tab === "measurements" ? "Measurements" : "Photos"}
           </button>
         ))}
       </div>
 
       {/* ================================================================= */}
-      {/* TAB 1: WEIGHT TRACKER                                             */}
+      {/* TAB 1: MEASUREMENTS                                               */}
       {/* ================================================================= */}
-      {activeTab === "weight" && (
+      {activeTab === "measurements" && (
         <div className="space-y-6">
           {/* Log Form */}
-          <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-6">
-            <h2 className="text-lg font-bold mb-4">Log Weight</h2>
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide">
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
+            <h2 className="text-lg font-bold mb-4">Log Measurement</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
                   Date
                 </label>
                 <input
                   type="date"
                   value={logDate}
                   onChange={(e) => setLogDate(e.target.value)}
-                  className="border border-[#2A2A2A] rounded-xl px-4 py-2.5 text-sm bg-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className={inputCls}
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide">
-                  Weight
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Weight (kg)
                 </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="Enter weight"
-                    value={logWeight}
-                    onChange={(e) => setLogWeight(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleLogWeight()}
-                    className="border border-[#2A2A2A] rounded-xl px-4 py-2.5 text-sm w-40 bg-light focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <span className="text-sm font-semibold text-white/40">kg</span>
-                </div>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 80"
+                  value={logWeight}
+                  onChange={(e) => setLogWeight(e.target.value)}
+                  className={inputCls}
+                />
               </div>
-              <Button onClick={handleLogWeight} className="!py-2.5 !px-8 !text-sm">
-                Log Weight
-              </Button>
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Belly (in)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 34"
+                  value={logBelly}
+                  onChange={(e) => setLogBelly(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Waist (in)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 32"
+                  value={logWaist}
+                  onChange={(e) => setLogWaist(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Chest (in)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 40"
+                  value={logChest}
+                  onChange={(e) => setLogChest(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Hips (in)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 38"
+                  value={logHips}
+                  onChange={(e) => setLogHips(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Arms (in)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 14"
+                  value={logArms}
+                  onChange={(e) => setLogArms(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  placeholder="Optional notes"
+                  value={logNotes}
+                  onChange={(e) => setLogNotes(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
             </div>
+            <button
+              onClick={handleLogMeasurement}
+              disabled={saving}
+              className="px-8 py-3 bg-[#E51A1A] text-white rounded-xl font-bold text-sm cursor-pointer border-none hover:bg-[#C41616] transition-colors"
+            >
+              {saving ? "Saving..." : "Save Measurement"}
+            </button>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-                Starting Weight
-              </p>
-              <p className="text-2xl font-black">
-                {startWeight !== null ? `${startWeight} kg` : "--"}
-              </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Starting Weight</p>
+              <p className="text-2xl font-black">{startWeight !== null ? `${startWeight} kg` : "--"}</p>
             </div>
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-                Current Weight
-              </p>
-              <p className="text-2xl font-black">
-                {currentWeight !== null ? `${currentWeight} kg` : "--"}
-              </p>
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Current Weight</p>
+              <p className="text-2xl font-black">{currentWeight !== null ? `${currentWeight} kg` : "--"}</p>
             </div>
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-                Total Change
-              </p>
-              <p
-                className={`text-2xl font-black ${
-                  totalChange !== null
-                    ? totalChange <= 0
-                      ? "text-green-600"
-                      : "text-primary"
-                    : ""
-                }`}
-              >
-                {totalChange !== null
-                  ? `${totalChange > 0 ? "+" : ""}${totalChange} kg`
-                  : "--"}
-              </p>
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Starting Belly</p>
+              <p className="text-2xl font-black">{startBelly !== null ? `${startBelly} in` : "--"}</p>
+            </div>
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Current Belly</p>
+              <p className="text-2xl font-black">{currentBelly !== null ? `${currentBelly} in` : "--"}</p>
             </div>
           </div>
 
-          {/* Weight Chart */}
-          <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-6">
+          {/* Multi-Metric Chart */}
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="text-lg font-bold">Weight Trend</h2>
-              <div className="flex gap-1.5">
-                {(
-                  [
-                    [7, "7 Days"],
-                    [30, "30 Days"],
-                    [90, "90 Days"],
-                    [0, "All"],
-                  ] as [number, string][]
-                ).map(([range, label]) => (
-                  <button
-                    key={range}
-                    onClick={() => setChartRange(range as 7 | 30 | 90 | 0)}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      chartRange === range
-                        ? "bg-primary text-white"
-                        : "bg-light text-white/50 hover:bg-beige"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <h2 className="text-lg font-bold">Trend (90 days)</h2>
+              <div className="flex gap-2">
+                {(Object.entries(METRIC_CONFIG) as [MetricKey, typeof METRIC_CONFIG[MetricKey]][]).map(
+                  ([key, cfg]) => {
+                    const isActive =
+                      key === "weightKg" ? showWeight :
+                      key === "bellyInches" ? showBelly :
+                      showWaist;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          if (key === "weightKg") setShowWeight(!showWeight);
+                          else if (key === "bellyInches") setShowBelly(!showBelly);
+                          else setShowWaist(!showWaist);
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
+                          isActive
+                            ? "text-white"
+                            : "text-white/30"
+                        }`}
+                        style={{ backgroundColor: isActive ? cfg.color + "20" : "#2A2A2A" }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: isActive ? cfg.color : "#666" }}
+                        />
+                        {cfg.label}
+                      </button>
+                    );
+                  }
+                )}
               </div>
             </div>
-            <WeightChart data={chartData} />
+            <MetricChart data={sorted} metrics={activeMetrics} />
           </div>
 
-          {/* Weight Log Table */}
-          <div className="bg-[#1E1E1E] rounded-2xl shadow-card overflow-hidden">
+          {/* Measurement History Table */}
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
             <div className="p-6 pb-3">
-              <h2 className="text-lg font-bold">Weight Log</h2>
+              <h2 className="text-lg font-bold">Measurement Log</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#222] text-left">
-                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">
-                      Weight
-                    </th>
-                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">
-                      Change
-                    </th>
+                  <tr className="border-b border-[#2A2A2A] text-left">
+                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Date</th>
+                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Weight</th>
+                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Belly</th>
+                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Waist</th>
+                    <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Change</th>
                     <th className="px-6 py-3" />
                   </tr>
                 </thead>
                 <tbody>
-                  {tableEntries.length === 0 && (
+                  {tableEntries.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-white/30">
-                        No entries yet. Log your first weight above.
+                      <td colSpan={6} className="px-6 py-12 text-center text-white/30">
+                        No measurements yet. Log your first measurement above to start tracking.
                       </td>
                     </tr>
-                  )}
-                  {tableEntries.map((entry) => (
-                    <tr
-                      key={entry.date}
-                      className="border-b border-[#1A1A1A] hover:bg-light/50 transition-colors"
-                    >
-                      <td className="px-6 py-3 font-medium">{fmtDateFull(entry.date)}</td>
-                      <td className="px-6 py-3">{entry.weight} kg</td>
-                      <td className="px-6 py-3">
-                        {entry.change !== null ? (
-                          <span
-                            className={`font-semibold ${
-                              entry.change < 0
-                                ? "text-green-600"
-                                : entry.change > 0
-                                  ? "text-primary"
-                                  : "text-white/30"
-                            }`}
+                  ) : (
+                    tableEntries.map((entry) => (
+                      <tr
+                        key={entry.id}
+                        className="border-b border-[#1A1A1A] hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="px-6 py-3 font-medium">{fmtDateFull(entry.loggedDate)}</td>
+                        <td className="px-6 py-3">{entry.weightKg !== null ? `${entry.weightKg} kg` : "--"}</td>
+                        <td className="px-6 py-3">{entry.bellyInches !== null ? `${entry.bellyInches} in` : "--"}</td>
+                        <td className="px-6 py-3">{entry.waistInches !== null ? `${entry.waistInches} in` : "--"}</td>
+                        <td className="px-6 py-3">
+                          {entry.weightChange !== null ? (
+                            <span className={`font-semibold ${entry.weightChange < 0 ? "text-green-400" : entry.weightChange > 0 ? "text-[#E51A1A]" : "text-white/30"}`}>
+                              {entry.weightChange > 0 ? "+" : ""}{entry.weightChange} kg
+                            </span>
+                          ) : (
+                            <span className="text-white/20">--</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <button
+                            onClick={() => handleDelete(entry.id)}
+                            className="text-white/20 hover:text-[#E51A1A] transition-colors cursor-pointer bg-transparent border-none text-sm"
+                            title="Delete entry"
                           >
-                            {entry.change > 0 ? "+" : ""}
-                            {entry.change} kg
-                          </span>
-                        ) : (
-                          <span className="text-dark/30">--</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-3 text-right">
-                        <button
-                          onClick={() => handleDeleteEntry(entry.date)}
-                          className="text-dark/30 hover:text-primary transition-colors cursor-pointer text-base"
-                          title="Delete entry"
-                        >
-                          🗑
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -582,23 +673,23 @@ export default function ProgressPage() {
       {activeTab === "photos" && (
         <div className="space-y-6">
           {/* Upload Section */}
-          <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-6">
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
             <h2 className="text-lg font-bold mb-4">Upload Progress Photo</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide">
+                <div>
+                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
                     Date
                   </label>
                   <input
                     type="date"
                     value={photoDate}
                     onChange={(e) => setPhotoDate(e.target.value)}
-                    className="border border-[#2A2A2A] rounded-xl px-4 py-2.5 text-sm bg-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className={inputCls}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide">
+                <div>
+                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
                     Notes (optional)
                   </label>
                   <textarea
@@ -606,15 +697,16 @@ export default function ProgressPage() {
                     onChange={(e) => setPhotoNotes(e.target.value)}
                     placeholder="E.g. Front pose, flexed, after workout..."
                     rows={3}
-                    className="border border-[#2A2A2A] rounded-xl px-4 py-2.5 text-sm bg-light resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className={inputCls + " resize-none"}
                   />
                 </div>
-                <Button
+                <button
                   onClick={handleUploadPhoto}
-                  className={`!py-2.5 !px-8 !text-sm ${!photoFile ? "opacity-50 pointer-events-none" : ""}`}
+                  disabled={!photoFile || photoSaving}
+                  className={`px-8 py-3 bg-[#E51A1A] text-white rounded-xl font-bold text-sm cursor-pointer border-none hover:bg-[#C41616] transition-colors ${!photoFile ? "opacity-50 pointer-events-none" : ""}`}
                 >
-                  Upload Photo
-                </Button>
+                  {photoSaving ? "Uploading..." : "Upload Photo"}
+                </button>
               </div>
               <div>
                 <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
@@ -622,7 +714,7 @@ export default function ProgressPage() {
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-[#2A2A2A] rounded-xl h-52 flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 hover:bg-primary/[0.02] transition-all overflow-hidden"
+                  className="border-2 border-dashed border-[#2A2A2A] rounded-xl h-52 flex flex-col items-center justify-center cursor-pointer hover:border-[#E51A1A]/40 hover:bg-[#E51A1A]/[0.02] transition-all overflow-hidden"
                 >
                   {previewUrl ? (
                     <img
@@ -632,13 +724,12 @@ export default function ProgressPage() {
                     />
                   ) : (
                     <>
-                      <span className="text-4xl mb-2 opacity-40">📷</span>
-                      <p className="text-sm text-white/30 font-medium">
-                        Click to select a photo
-                      </p>
-                      <p className="text-xs text-dark/30 mt-1">
-                        JPG, PNG up to 10MB
-                      </p>
+                      <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="mb-2 text-white/20">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
+                      <p className="text-sm text-white/30 font-medium">Click to select a photo</p>
+                      <p className="text-xs text-white/20 mt-1">JPG, PNG up to 10MB</p>
                     </>
                   )}
                 </div>
@@ -654,17 +745,17 @@ export default function ProgressPage() {
           </div>
 
           {/* Compare Mode Controls */}
-          {photos.length >= 2 && (
+          {photosData.length >= 2 && (
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
                   setCompareMode((prev) => !prev);
                   setCompareSelection([]);
                 }}
-                className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${
+                className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer border-none ${
                   compareMode
-                    ? "bg-dark text-white"
-                    : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A] hover:border-[#181818]0"
+                    ? "bg-white text-[#0A0A0A]"
+                    : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A]"
                 }`}
               >
                 {compareMode ? "Exit Compare" : "Compare Photos"}
@@ -679,64 +770,75 @@ export default function ProgressPage() {
 
           {/* Compare View */}
           {compareMode && selectedPhotos.length === 2 && (
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-6">
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
               <h2 className="text-lg font-bold mb-4">Side-by-Side Comparison</h2>
               <div className="grid grid-cols-2 gap-6">
-                {selectedPhotos.map((photo) => (
-                  <div key={photo.id} className="text-center">
-                    <div className="rounded-xl overflow-hidden bg-light mb-3 aspect-[3/4]">
-                      <img
-                        src={photo.url}
-                        alt={`Progress photo ${photo.date}`}
-                        className="w-full h-full object-cover"
-                      />
+                {selectedPhotos.map((photo) => {
+                  const m = measurements.find((me) => me.id === photo.id);
+                  return (
+                    <div key={photo.id} className="text-center">
+                      <div className="rounded-xl overflow-hidden bg-[#0A0A0A] mb-3 aspect-[3/4]">
+                        <img
+                          src={photo.imageData!}
+                          alt={`Progress photo ${photo.loggedDate}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-sm font-bold">{fmtDateFull(photo.loggedDate)}</p>
+                      {m && m.weightKg !== null && (
+                        <p className="text-xs text-white/50 mt-0.5">Weight: {m.weightKg} kg</p>
+                      )}
+                      {m && m.bellyInches !== null && (
+                        <p className="text-xs text-white/50">Belly: {m.bellyInches} in</p>
+                      )}
+                      {photo.notes && (
+                        <p className="text-xs text-white/40 mt-1">{photo.notes}</p>
+                      )}
                     </div>
-                    <p className="text-sm font-bold">{fmtDateFull(photo.date)}</p>
-                    {photo.notes && (
-                      <p className="text-xs text-white/40 mt-1">{photo.notes}</p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
           {/* Photo Gallery */}
-          {photos.length === 0 ? (
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-12 text-center">
-              <span className="text-5xl mb-4 block">📸</span>
+          {photosData.length === 0 ? (
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-12 text-center">
+              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" className="mx-auto mb-4 text-white/20">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
               <p className="text-white/40 max-w-md mx-auto">
-                No progress photos yet. Upload your first one to start tracking
-                your transformation!
+                No progress photos yet. Upload your first one to start tracking your transformation.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {photos.map((photo) => {
+              {photosData.map((photo) => {
                 const isSelected = compareSelection.includes(photo.id);
                 return (
                   <div
                     key={photo.id}
                     onClick={() => compareMode && toggleCompareSelect(photo.id)}
-                    className={`rounded-xl overflow-hidden bg-[#1E1E1E] shadow-card transition-all ${
+                    className={`rounded-xl overflow-hidden bg-[#1E1E1E] border border-[#2A2A2A] transition-all ${
                       compareMode ? "cursor-pointer" : ""
                     } ${
                       isSelected
-                        ? "ring-3 ring-primary ring-offset-2"
+                        ? "ring-2 ring-[#E51A1A] ring-offset-2 ring-offset-[#0A0A0A]"
                         : compareMode
-                          ? "hover:ring-2 hover:ring-dark/20"
+                          ? "hover:ring-1 hover:ring-white/20"
                           : ""
                     }`}
                   >
-                    <div className="aspect-[3/4] bg-light">
+                    <div className="aspect-[3/4] bg-[#0A0A0A]">
                       <img
-                        src={photo.url}
-                        alt={`Progress photo ${photo.date}`}
+                        src={photo.imageData!}
+                        alt={`Progress photo ${photo.loggedDate}`}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="p-3">
-                      <p className="text-xs font-bold">{fmtDateFull(photo.date)}</p>
+                      <p className="text-xs font-bold">{fmtDateFull(photo.loggedDate)}</p>
                       {photo.notes && (
                         <p className="text-xs text-white/40 mt-0.5 line-clamp-2">
                           {photo.notes}

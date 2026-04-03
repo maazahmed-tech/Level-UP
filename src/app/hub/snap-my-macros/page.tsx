@@ -1,529 +1,698 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+/* ─── Types ──────────────────────────────────────────────────────────── */
 
-interface MealEntry {
-  id: string;
-  description: string;
-  mealType: "Breakfast" | "Lunch" | "Dinner" | "Snack";
+interface FoodItem {
+  id: number;
+  name: string;
+  category: string;
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+  servingSize: number | null;
+  servingUnit: string | null;
+}
+
+interface Ingredient {
+  foodItemId: number;
+  name: string;
+  weightGrams: number;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+}
+
+interface MealLog {
+  id: number;
+  description: string;
+  mealType: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  imageData: string | null;
+  ingredients: string | null;
+  loggedDate: string;
+  loggedTime: string;
+}
+
+interface MacroTargets {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
 }
 
 type Tab = "log" | "meals";
+type MealType = "Breakfast" | "Lunch" | "Dinner" | "Snack";
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-const TARGETS = { calories: 2200, protein: 165, carbs: 220, fat: 60 };
+const MEAL_TYPES: MealType[] = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+function nowTimeStr() {
+  return new Date().toTimeString().slice(0, 5);
 }
 
-function formatTime(time: string) {
-  const [h, m] = time.split(":");
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:${m} ${ampm}`;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Quick-add presets                                                   */
-/* ------------------------------------------------------------------ */
-
-const PRESETS = [
-  { label: "Protein Shake", calories: 250, protein: 30, carbs: 15, fat: 5 },
-  { label: "Chicken & Rice", calories: 450, protein: 40, carbs: 50, fat: 8 },
-  { label: "Greek Yogurt", calories: 150, protein: 15, carbs: 12, fat: 5 },
-  { label: "Protein Bar", calories: 220, protein: 20, carbs: 25, fat: 8 },
-  { label: "Eggs on Toast", calories: 350, protein: 22, carbs: 30, fat: 15 },
-  { label: "Tuna Salad", calories: 300, protein: 35, carbs: 10, fat: 12 },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Sample data                                                        */
-/* ------------------------------------------------------------------ */
-
-function buildSampleMeals(): MealEntry[] {
-  const today = todayStr();
-  return [
-    {
-      id: generateId(),
-      description: "Protein Oats",
-      mealType: "Breakfast",
-      calories: 380,
-      protein: 30,
-      carbs: 45,
-      fat: 8,
-      date: today,
-      time: "08:00",
-    },
-    {
-      id: generateId(),
-      description: "Chicken Burrito Bowl",
-      mealType: "Lunch",
-      calories: 520,
-      protein: 42,
-      carbs: 55,
-      fat: 12,
-      date: today,
-      time: "12:30",
-    },
-    {
-      id: generateId(),
-      description: "Protein Shake",
-      mealType: "Snack",
-      calories: 250,
-      protein: 30,
-      carbs: 15,
-      fat: 5,
-      date: today,
-      time: "15:00",
-    },
-  ];
-}
-
-/* ------------------------------------------------------------------ */
-/*  Meal-type badge colors                                             */
-/* ------------------------------------------------------------------ */
-
-const MEAL_TYPE_COLORS: Record<string, string> = {
-  Breakfast: "bg-amber-100 text-amber-800",
-  Lunch: "bg-emerald-100 text-emerald-800",
-  Dinner: "bg-indigo-100 text-indigo-800",
-  Snack: "bg-pink-100 text-pink-800",
-};
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+/* ─── Main Component ─────────────────────────────────────────────────── */
 
 export default function SnapMyMacrosPage() {
   const [tab, setTab] = useState<Tab>("log");
-  const [meals, setMeals] = useState<MealEntry[]>(buildSampleMeals);
-  const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [successMsg, setSuccessMsg] = useState(false);
 
-  /* Form state */
-  const [formDesc, setFormDesc] = useState("");
-  const [formType, setFormType] = useState<MealEntry["mealType"]>("Breakfast");
-  const [formCal, setFormCal] = useState("");
-  const [formProtein, setFormProtein] = useState("");
-  const [formCarbs, setFormCarbs] = useState("");
-  const [formFat, setFormFat] = useState("");
+  /* ── Log a Meal state ──────────────────────────────────── */
+  const [mealType, setMealType] = useState<MealType>("Breakfast");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [description, setDescription] = useState("");
+  const [imageData, setImageData] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  /* ---- actions ---- */
+  /* ── Meal Log state ────────────────────────────────────── */
+  const [logDate, setLogDate] = useState(todayStr());
+  const [meals, setMeals] = useState<MealLog[]>([]);
+  const [loadingMeals, setLoadingMeals] = useState(false);
+  const [targets, setTargets] = useState<MacroTargets>({ calories: 2200, protein: 165, carbs: 220, fat: 60 });
+  const [expandedMeal, setExpandedMeal] = useState<number | null>(null);
 
-  function clearForm() {
-    setFormDesc("");
-    setFormType("Breakfast");
-    setFormCal("");
-    setFormProtein("");
-    setFormCarbs("");
-    setFormFat("");
-  }
+  /* ── Effects ───────────────────────────────────────────── */
 
-  function handleLog(e: React.FormEvent) {
-    e.preventDefault();
-    if (!formDesc.trim() || !formCal) return;
+  // Fetch macro targets on mount
+  useEffect(() => {
+    fetch("/api/user/macro-targets")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.targets) setTargets(d.targets);
+      })
+      .catch(() => {});
+  }, []);
 
-    const now = new Date();
-    const entry: MealEntry = {
-      id: generateId(),
-      description: formDesc.trim(),
-      mealType: formType,
-      calories: Number(formCal) || 0,
-      protein: Number(formProtein) || 0,
-      carbs: Number(formCarbs) || 0,
-      fat: Number(formFat) || 0,
-      date: todayStr(),
-      time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+  // Fetch meals when tab switches or date changes
+  const fetchMeals = useCallback(async () => {
+    setLoadingMeals(true);
+    try {
+      const res = await fetch(`/api/meals?date=${logDate}`);
+      const data = await res.json();
+      setMeals(data.meals || []);
+    } catch {
+      console.error("Failed to fetch meals");
+    }
+    setLoadingMeals(false);
+  }, [logDate]);
+
+  useEffect(() => {
+    if (tab === "meals") fetchMeals();
+  }, [tab, logDate, fetchMeals]);
+
+  // Debounced food search
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/food-items?search=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(data.items || []);
+        setShowDropdown(true);
+      } catch {
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
+  }, [searchQuery]);
 
-    setMeals((prev) => [...prev, entry]);
-    clearForm();
-    setSuccessMsg(true);
-    setTimeout(() => {
-      setSuccessMsg(false);
-      setTab("meals");
-    }, 2000);
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  /* ── Helpers ───────────────────────────────────────────── */
+
+  function calcMacro(food: FoodItem, grams: number) {
+    return {
+      calories: Math.round((food.caloriesPer100g * grams) / 100),
+      protein: Math.round(((food.proteinPer100g * grams) / 100) * 10) / 10,
+      carbs: Math.round(((food.carbsPer100g * grams) / 100) * 10) / 10,
+      fat: Math.round(((food.fatPer100g * grams) / 100) * 10) / 10,
+    };
   }
 
-  function handleDelete(id: string) {
-    setMeals((prev) => prev.filter((m) => m.id !== id));
+  function addIngredient(food: FoodItem) {
+    const weight = food.servingSize || 100;
+    const macros = calcMacro(food, weight);
+    setIngredients((prev) => [
+      ...prev,
+      {
+        foodItemId: food.id,
+        name: food.name,
+        weightGrams: weight,
+        ...macros,
+      },
+    ]);
+    setSearchQuery("");
+    setShowDropdown(false);
+    // Auto-gen description
+    const names = [...ingredients.map((i) => i.name), food.name];
+    setDescription(names.join(", "));
   }
 
-  function applyPreset(preset: (typeof PRESETS)[number]) {
-    setFormDesc(preset.label);
-    setFormCal(String(preset.calories));
-    setFormProtein(String(preset.protein));
-    setFormCarbs(String(preset.carbs));
-    setFormFat(String(preset.fat));
+  function updateIngredientWeight(idx: number, grams: number) {
+    setIngredients((prev) =>
+      prev.map((ing, i) => {
+        if (i !== idx) return ing;
+        const food = searchResults.find((f) => f.id === ing.foodItemId);
+        // Recalc from per-100g stored in ingredient (reverse calc)
+        const origPer100Cal = Math.round((ing.calories * 100) / ing.weightGrams);
+        const origPer100P = Math.round(((ing.protein * 100) / ing.weightGrams) * 10) / 10;
+        const origPer100C = Math.round(((ing.carbs * 100) / ing.weightGrams) * 10) / 10;
+        const origPer100F = Math.round(((ing.fat * 100) / ing.weightGrams) * 10) / 10;
+        if (food) {
+          const macros = calcMacro(food, grams);
+          return { ...ing, weightGrams: grams, ...macros };
+        }
+        return {
+          ...ing,
+          weightGrams: grams,
+          calories: Math.round((origPer100Cal * grams) / 100),
+          protein: Math.round((origPer100P * grams) / 100 * 10) / 10,
+          carbs: Math.round((origPer100C * grams) / 100 * 10) / 10,
+          fat: Math.round((origPer100F * grams) / 100 * 10) / 10,
+        };
+      })
+    );
   }
 
-  /* ---- derived data ---- */
+  function removeIngredient(idx: number) {
+    setIngredients((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      setDescription(next.map((i) => i.name).join(", "));
+      return next;
+    });
+  }
 
-  const filteredMeals = meals
-    .filter((m) => m.date === selectedDate)
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const totals = ingredients.reduce(
+    (acc, ing) => ({
+      calories: acc.calories + ing.calories,
+      protein: acc.protein + ing.protein,
+      carbs: acc.carbs + ing.carbs,
+      fat: acc.fat + ing.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
 
-  const totals = filteredMeals.reduce(
+  async function handleLogMeal() {
+    if (ingredients.length === 0) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mealType,
+          description: description || ingredients.map((i) => i.name).join(", "),
+          calories: totals.calories,
+          protein: totals.protein,
+          carbs: totals.carbs,
+          fat: totals.fat,
+          ingredients: JSON.stringify(ingredients),
+          imageData,
+          loggedDate: todayStr(),
+          loggedTime: nowTimeStr(),
+        }),
+      });
+      if (res.ok) {
+        setIngredients([]);
+        setDescription("");
+        setImageData(null);
+        setSearchQuery("");
+        setTab("meals");
+        setLogDate(todayStr());
+      }
+    } catch {
+      alert("Failed to log meal");
+    }
+    setSaving(false);
+  }
+
+  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setImageData(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function deleteMeal(id: number) {
+    if (!confirm("Delete this meal?")) return;
+    try {
+      await fetch(`/api/meals/${id}`, { method: "DELETE" });
+      fetchMeals();
+    } catch {
+      alert("Failed to delete");
+    }
+  }
+
+  /* ── Daily totals for Meal Log tab ─────────────────────── */
+
+  const dayTotals = meals.reduce(
     (acc, m) => ({
       calories: acc.calories + m.calories,
       protein: acc.protein + m.protein,
       carbs: acc.carbs + m.carbs,
       fat: acc.fat + m.fat,
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
 
-  /* ---- shared input classes ---- */
-
-  const inputClass =
-    "w-full px-4 py-3 border-2 border-[#2A2A2A] rounded-xl focus:border-primary focus:outline-none bg-[#1E1E1E] text-white transition-colors";
-
-  /* ================================================================== */
-  /*  RENDER                                                             */
-  /* ================================================================== */
+  /* ─── Render ─────────────────────────────────────────────── */
 
   return (
-    <section className="min-h-screen bg-cream">
-      {/* ---- Header ---- */}
-      <div className="bg-dark text-white py-12">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Snap My Macros</h1>
-          <p className="text-white/70 text-lg">
-            Log your meals and track your daily macros effortlessly.
-          </p>
-        </div>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-white">Snap My Macros</h1>
+        <p className="text-sm text-white/50 mt-1">
+          Log meals with ingredient-based calorie tracking
+        </p>
       </div>
 
-      {/* ---- Tab bar ---- */}
-      <div className="max-w-3xl mx-auto px-4 -mt-5">
-        <div className="bg-[#1E1E1E] rounded-2xl shadow-card flex overflow-hidden">
-          <button
-            onClick={() => setTab("log")}
-            className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
-              tab === "log"
-                ? "bg-primary text-white"
-                : "text-white/50 hover:bg-beige"
-            }`}
-          >
-            Log a Meal
-          </button>
-          <button
-            onClick={() => setTab("meals")}
-            className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
-              tab === "meals"
-                ? "bg-primary text-white"
-                : "text-white/50 hover:bg-beige"
-            }`}
-          >
-            Meal Log
-          </button>
-        </div>
+      {/* Tab Switcher */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTab("log")}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
+            tab === "log"
+              ? "bg-[#E51A1A] text-white"
+              : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A]"
+          }`}
+        >
+          Log a Meal
+        </button>
+        <button
+          onClick={() => setTab("meals")}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
+            tab === "meals"
+              ? "bg-[#E51A1A] text-white"
+              : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A]"
+          }`}
+        >
+          Meal Log
+        </button>
       </div>
 
-      {/* ---- Content ---- */}
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* ============================================================ */}
-        {/*  TAB 1 — Log a Meal                                          */}
-        {/* ============================================================ */}
-        {tab === "log" && (
-          <div className="space-y-8">
-            {/* Success banner */}
-            {successMsg && (
-              <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 px-5 py-3 rounded-2xl text-center font-semibold animate-pulse">
-                Meal logged!
-              </div>
-            )}
-
-            {/* Form card */}
-            <form
-              onSubmit={handleLog}
-              className="bg-[#1E1E1E] rounded-2xl shadow-card p-6 md:p-8 space-y-5"
-            >
-              <h2 className="text-xl font-bold text-white">Log a Meal</h2>
-
-              {/* Meal name */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-1.5">
-                  Meal Name / Description <span className="text-primary">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Grilled Chicken Salad"
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-
-              {/* Meal type */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-1.5">
-                  Meal Type
-                </label>
-                <select
-                  value={formType}
-                  onChange={(e) =>
-                    setFormType(e.target.value as MealEntry["mealType"])
-                  }
-                  className={inputClass}
-                >
-                  <option>Breakfast</option>
-                  <option>Lunch</option>
-                  <option>Dinner</option>
-                  <option>Snack</option>
-                </select>
-              </div>
-
-              {/* Macro inputs — 2x2 grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1.5">
-                    Calories <span className="text-primary">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    placeholder="kcal"
-                    value={formCal}
-                    onChange={(e) => setFormCal(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1.5">
-                    Protein (g)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="grams"
-                    value={formProtein}
-                    onChange={(e) => setFormProtein(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1.5">
-                    Carbs (g)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="grams"
-                    value={formCarbs}
-                    onChange={(e) => setFormCarbs(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1.5">
-                    Fat (g)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="grams"
-                    value={formFat}
-                    onChange={(e) => setFormFat(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              {/* Submit */}
+      {/* ── LOG A MEAL TAB ────────────────────────────────── */}
+      {tab === "log" && (
+        <div className="space-y-4">
+          {/* Meal Type Selector */}
+          <div className="flex gap-2">
+            {MEAL_TYPES.map((mt) => (
               <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-primary text-white font-semibold hover:opacity-90 transition-opacity"
+                key={mt}
+                onClick={() => setMealType(mt)}
+                className={`flex-1 py-2 rounded-full text-xs font-semibold transition ${
+                  mealType === mt
+                    ? "bg-[#E51A1A] text-white"
+                    : "bg-[#1E1E1E] text-white/50 border border-[#2A2A2A]"
+                }`}
               >
-                Log Meal
+                {mt}
               </button>
-            </form>
+            ))}
+          </div>
 
-            {/* Quick-add presets */}
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-6 md:p-8">
-              <h3 className="text-lg font-bold text-white mb-1">Quick Add</h3>
-              <p className="text-white/50 text-sm mb-4">
-                Tap a preset to auto-fill the form above.
+          {/* Running Totals */}
+          {ingredients.length > 0 && (
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
+              <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">
+                Meal Totals
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {PRESETS.map((p) => (
+              <div className="grid grid-cols-4 gap-3">
+                <MacroStat label="Calories" value={totals.calories} unit="kcal" color="#E51A1A" />
+                <MacroStat label="Protein" value={totals.protein} unit="g" color="#E51A1A" />
+                <MacroStat label="Carbs" value={totals.carbs} unit="g" color="#FF6B00" />
+                <MacroStat label="Fat" value={totals.fat} unit="g" color="#FFB800" />
+              </div>
+            </div>
+          )}
+
+          {/* Ingredient Search */}
+          <div className="relative" ref={dropdownRef}>
+            <input
+              type="text"
+              placeholder="Search food to add (e.g. chicken breast, rice)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#E51A1A] text-sm"
+            />
+            {showDropdown && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl max-h-60 overflow-y-auto z-20 shadow-xl">
+                {searchResults.map((food) => (
                   <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className="border-2 border-[#2A2A2A] rounded-xl px-4 py-3 text-left hover:border-primary hover:bg-beige transition-colors group"
+                    key={food.id}
+                    onClick={() => addIngredient(food)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#2A2A2A] transition text-left border-b border-[#2A2A2A]/50 last:border-0"
                   >
-                    <span className="block font-semibold text-white text-sm group-hover:text-primary transition-colors">
-                      {p.label}
-                    </span>
-                    <span className="block text-white/50 text-xs mt-0.5">
-                      {p.calories} cal &middot; {p.protein}P &middot; {p.carbs}C &middot; {p.fat}F
+                    <div>
+                      <p className="text-sm text-white font-medium">{food.name}</p>
+                      <p className="text-[10px] text-white/40">
+                        {food.category}
+                        {food.servingSize ? ` | 1 ${food.servingUnit || "serving"} = ${food.servingSize}g` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs text-[#E51A1A] font-semibold shrink-0 ml-2">
+                      {food.caloriesPer100g} kcal/100g
                     </span>
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/*  TAB 2 — Meal Log                                            */}
-        {/* ============================================================ */}
-        {tab === "meals" && (
-          <div className="space-y-6">
-            {/* Date picker */}
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Meal Log</h2>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-4 py-2 border-2 border-[#2A2A2A] rounded-xl focus:border-primary focus:outline-none text-white text-sm"
-              />
-            </div>
-
-            {/* Daily summary */}
-            <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-5 md:p-6">
-              <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wide mb-4">
-                Daily Summary
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {(
-                  [
-                    { label: "Calories", key: "calories" as const, unit: "kcal", color: "bg-amber-500" },
-                    { label: "Protein", key: "protein" as const, unit: "g", color: "bg-emerald-500" },
-                    { label: "Carbs", key: "carbs" as const, unit: "g", color: "bg-blue-500" },
-                    { label: "Fat", key: "fat" as const, unit: "g", color: "bg-pink-500" },
-                  ] as const
-                ).map((metric) => {
-                  const current = totals[metric.key];
-                  const target = TARGETS[metric.key];
-                  const pct = Math.min((current / target) * 100, 100);
-                  const over = current > target;
-                  return (
-                    <div
-                      key={metric.key}
-                      className="bg-light rounded-xl p-4"
-                    >
-                      <p className="text-xs font-medium text-white/50 mb-1">{metric.label}</p>
-                      <p className="text-xl font-bold text-white">
-                        {current}
-                        <span className="text-sm font-normal text-white/50 ml-0.5">
-                          {metric.unit}
-                        </span>
-                      </p>
-                      <p className="text-xs text-white/50 mb-2">
-                        / {target}
-                        {metric.unit}
-                      </p>
-                      {/* Progress bar */}
-                      <div className="w-full h-2 bg-dark/10 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            over ? "bg-primary" : metric.color
-                          }`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Meal list */}
-            {filteredMeals.length === 0 ? (
-              <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-10 text-center">
-                <p className="text-white/50 text-lg mb-4">
-                  No meals logged for this date. Start tracking!
-                </p>
-                <button
-                  onClick={() => setTab("log")}
-                  className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:opacity-90 transition-opacity"
-                >
-                  Log a Meal
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredMeals.map((meal) => (
-                  <div
-                    key={meal.id}
-                    className="bg-[#1E1E1E] rounded-2xl shadow-card p-5 flex items-start justify-between gap-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span
-                          className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                            MEAL_TYPE_COLORS[meal.mealType]
-                          }`}
-                        >
-                          {meal.mealType}
-                        </span>
-                        <span className="text-xs text-white/50">
-                          {formatTime(meal.time)}
-                        </span>
-                      </div>
-                      <p className="font-semibold text-white truncate">
-                        {meal.description}
-                      </p>
-                      <div className="flex gap-3 mt-1.5 text-sm text-white/50 flex-wrap">
-                        <span>{meal.calories} cal</span>
-                        <span>{meal.protein}g P</span>
-                        <span>{meal.carbs}g C</span>
-                        <span>{meal.fat}g F</span>
-                      </div>
-                    </div>
-
-                    {/* Delete button */}
-                    <button
-                      onClick={() => handleDelete(meal.id)}
-                      className="text-dark/30 hover:text-primary transition-colors p-1 mt-1 shrink-0"
-                      aria-label="Delete meal"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
             )}
           </div>
-        )}
+
+          {/* Added Ingredients */}
+          {ingredients.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-white/40 uppercase tracking-wider">
+                Ingredients
+              </p>
+              {ingredients.map((ing, idx) => (
+                <div
+                  key={idx}
+                  className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3 flex items-center gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">
+                      {ing.name}
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      {ing.calories} kcal | P: {ing.protein}g | C: {ing.carbs}g | F: {ing.fat}g
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      type="number"
+                      value={ing.weightGrams}
+                      onChange={(e) =>
+                        updateIngredientWeight(idx, parseInt(e.target.value) || 0)
+                      }
+                      className="w-16 px-2 py-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white text-xs text-center focus:outline-none focus:border-[#E51A1A]"
+                    />
+                    <span className="text-[10px] text-white/40">g</span>
+                  </div>
+                  <button
+                    onClick={() => removeIngredient(idx)}
+                    className="text-white/30 hover:text-red-400 transition text-lg leading-none"
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Description */}
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">
+              Meal Description
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Grilled Chicken Salad"
+              className="w-full px-4 py-2.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#E51A1A]"
+            />
+          </div>
+
+          {/* Photo Upload */}
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">
+              Meal Photo (optional)
+            </label>
+            <div className="flex items-center gap-3">
+              <label className="px-4 py-2 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl text-white/60 text-sm cursor-pointer hover:border-[#E51A1A] transition">
+                {imageData ? "Change Photo" : "Add Photo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhoto}
+                  className="hidden"
+                />
+              </label>
+              {imageData && (
+                <div className="relative">
+                  <img
+                    src={imageData}
+                    alt="Meal preview"
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                  <button
+                    onClick={() => setImageData(null)}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center"
+                  >
+                    x
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Log Button */}
+          <button
+            onClick={handleLogMeal}
+            disabled={saving || ingredients.length === 0}
+            className="w-full py-3 bg-[#E51A1A] text-white rounded-xl font-semibold text-sm hover:bg-[#E51A1A]/90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {saving ? "Logging..." : "Log Meal"}
+          </button>
+        </div>
+      )}
+
+      {/* ── MEAL LOG TAB ──────────────────────────────────── */}
+      {tab === "meals" && (
+        <div className="space-y-4">
+          {/* Date Picker */}
+          <input
+            type="date"
+            value={logDate}
+            onChange={(e) => setLogDate(e.target.value)}
+            className="w-full px-4 py-2.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl text-white text-sm focus:outline-none focus:border-[#E51A1A] [color-scheme:dark]"
+          />
+
+          {/* Daily Totals */}
+          {meals.length > 0 && (
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
+              <p className="text-xs text-white/40 mb-3 uppercase tracking-wider">
+                Daily Progress
+              </p>
+              <div className="space-y-3">
+                <ProgressBar
+                  label="Calories"
+                  current={dayTotals.calories}
+                  target={targets.calories}
+                  unit="kcal"
+                  color="#E51A1A"
+                />
+                <ProgressBar
+                  label="Protein"
+                  current={Math.round(dayTotals.protein)}
+                  target={targets.protein}
+                  unit="g"
+                  color="#E51A1A"
+                />
+                <ProgressBar
+                  label="Carbs"
+                  current={Math.round(dayTotals.carbs)}
+                  target={targets.carbs}
+                  unit="g"
+                  color="#FF6B00"
+                />
+                <ProgressBar
+                  label="Fat"
+                  current={Math.round(dayTotals.fat)}
+                  target={targets.fat}
+                  unit="g"
+                  color="#FFB800"
+                />
+              </div>
+            </div>
+          )}
+
+          {loadingMeals ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-[#E51A1A] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : meals.length === 0 ? (
+            <div className="text-center py-12 text-white/40">
+              <p className="text-lg mb-1">No meals logged for this date.</p>
+              <p className="text-sm">Start by logging your breakfast.</p>
+            </div>
+          ) : (
+            /* Meals grouped by type */
+            MEAL_TYPES.map((mt) => {
+              const mtMeals = meals.filter((m) => m.mealType === mt);
+              if (mtMeals.length === 0) return null;
+              return (
+                <div key={mt}>
+                  <h3 className="text-sm font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    {mt}
+                  </h3>
+                  <div className="space-y-2">
+                    {mtMeals.map((meal) => {
+                      const isExpanded = expandedMeal === meal.id;
+                      let parsedIngredients: Ingredient[] = [];
+                      try {
+                        if (meal.ingredients)
+                          parsedIngredients = JSON.parse(meal.ingredients);
+                      } catch {}
+                      return (
+                        <div
+                          key={meal.id}
+                          className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden"
+                        >
+                          <button
+                            onClick={() =>
+                              setExpandedMeal(isExpanded ? null : meal.id)
+                            }
+                            className="w-full p-3 flex items-center gap-3 text-left"
+                          >
+                            {meal.imageData && (
+                              <img
+                                src={meal.imageData}
+                                alt=""
+                                className="w-10 h-10 rounded-lg object-cover shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white font-medium truncate">
+                                {meal.description}
+                              </p>
+                              <p className="text-[10px] text-white/40">
+                                {meal.loggedTime} |{" "}
+                                {meal.calories} kcal | P:{" "}
+                                {Math.round(meal.protein)}g | C:{" "}
+                                {Math.round(meal.carbs)}g | F:{" "}
+                                {Math.round(meal.fat)}g
+                              </p>
+                            </div>
+                            <span className="text-white/20 text-xs shrink-0">
+                              {isExpanded ? "^" : "v"}
+                            </span>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-3 pb-3 border-t border-[#2A2A2A]">
+                              {parsedIngredients.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {parsedIngredients.map((ing, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex justify-between text-[11px] text-white/50"
+                                    >
+                                      <span>
+                                        {ing.name} ({ing.weightGrams}g)
+                                      </span>
+                                      <span>
+                                        {ing.calories} kcal
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <button
+                                onClick={() => deleteMeal(meal.id)}
+                                className="mt-3 px-3 py-1.5 bg-red-900/30 text-red-400 text-xs rounded-lg hover:bg-red-900/50 transition"
+                              >
+                                Delete Meal
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Sub-components ──────────────────────────────────────────────────── */
+
+function MacroStat({
+  label,
+  value,
+  unit,
+  color,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  color: string;
+}) {
+  return (
+    <div className="text-center">
+      <p className="text-lg font-bold" style={{ color }}>
+        {Math.round(value)}
+      </p>
+      <p className="text-[10px] text-white/40">
+        {unit} {label}
+      </p>
+    </div>
+  );
+}
+
+function ProgressBar({
+  label,
+  current,
+  target,
+  unit,
+  color,
+}: {
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+  color: string;
+}) {
+  const pct = Math.min((current / target) * 100, 100);
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-white/60">{label}</span>
+        <span className="text-white/40">
+          {current} / {target} {unit}
+        </span>
       </div>
-    </section>
+      <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
   );
 }

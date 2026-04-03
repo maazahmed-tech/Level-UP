@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 type Step = "account" | "payment" | "success";
 
@@ -308,8 +309,7 @@ export default function CheckoutPage() {
                     <label className="block font-semibold text-sm text-white mb-1.5">
                       Password
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Min 8 chars, 1 letter, 1 number"
@@ -322,8 +322,7 @@ export default function CheckoutPage() {
                     <label className="block font-semibold text-sm text-white mb-1.5">
                       Confirm Password
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter your password"

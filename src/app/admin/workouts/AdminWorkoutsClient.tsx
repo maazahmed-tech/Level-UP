@@ -14,6 +14,15 @@ interface WorkoutRow {
   createdAt: string;
   subcategoryName: string;
   categoryName: string;
+  youtubeUrl?: string | null;
+}
+
+function getYoutubeThumbnail(url?: string | null): string | null {
+  if (!url) return null;
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return match ? `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg` : null;
 }
 
 export default function AdminWorkoutsClient({
@@ -54,7 +63,7 @@ export default function AdminWorkoutsClient({
           ...w,
           isPublished: !current,
           instructions: [],
-          subcategoryId: 0, // Will be ignored since we pass all fields
+          subcategoryId: 0,
         }),
       });
       router.refresh();
@@ -86,108 +95,105 @@ export default function AdminWorkoutsClient({
         </Link>
       </div>
 
-      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#2A2A2A]">
-                <th className="text-left px-6 py-4 text-white/50 font-semibold">
-                  Title
-                </th>
-                <th className="text-left px-6 py-4 text-white/50 font-semibold">
-                  Category
-                </th>
-                <th className="text-left px-6 py-4 text-white/50 font-semibold">
-                  Difficulty
-                </th>
-                <th className="text-left px-6 py-4 text-white/50 font-semibold">
-                  Duration
-                </th>
-                <th className="text-left px-6 py-4 text-white/50 font-semibold">
-                  Published
-                </th>
-                <th className="text-right px-6 py-4 text-white/50 font-semibold">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {workouts.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-12 text-center text-white/40"
-                  >
-                    No workouts yet. Add your first workout to get started.
-                  </td>
-                </tr>
-              ) : (
-                workouts.map((w) => (
-                  <tr
-                    key={w.id}
-                    className="border-b border-[#2A2A2A] last:border-b-0 hover:bg-white/[0.02]"
-                  >
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-white">
-                        {w.title}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-white/60">
-                      {w.categoryName}{" "}
-                      <span className="text-white/30">&gt;</span>{" "}
-                      {w.subcategoryName}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          difficultyColor[w.difficulty] ||
-                          "bg-white/10 text-white/50"
-                        }`}
-                      >
-                        {w.difficulty}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-white/60">
-                      {w.duration || "-"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => togglePublished(w.id, w.isPublished)}
-                        className={`w-10 h-6 rounded-full transition-colors relative cursor-pointer ${
-                          w.isPublished ? "bg-[#E51A1A]" : "bg-[#2A2A2A]"
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                            w.isPublished ? "left-5" : "left-1"
-                          }`}
-                        />
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/admin/workouts/${w.id}/edit`}
-                          className="text-white/50 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                        >
-                          Edit
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(w.id)}
-                          disabled={deleting === w.id}
-                          className="text-red-400/60 hover:text-red-400 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/10 transition-colors disabled:opacity-40 cursor-pointer"
-                        >
-                          {deleting === w.id ? "..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {workouts.length === 0 ? (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl px-6 py-12 text-center text-white/40">
+          No workouts yet. Add your first workout to get started.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {workouts.map((w) => {
+            const thumbnail = getYoutubeThumbnail(w.youtubeUrl);
+            return (
+              <div
+                key={w.id}
+                className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-[#3A3A3A] transition-colors flex flex-col"
+              >
+                {/* Thumbnail */}
+                <div className="relative w-full aspect-video bg-[#0A0A0A]">
+                  {thumbnail ? (
+                    <img
+                      src={thumbnail}
+                      alt={w.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg
+                        className="w-10 h-10 text-white/10"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  )}
+                  {/* Duration badge */}
+                  {w.duration && (
+                    <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded">
+                      {w.duration}
+                    </span>
+                  )}
+                </div>
+
+                {/* Card body */}
+                <div className="p-4 flex flex-col flex-1 gap-2">
+                  <h3 className="font-semibold text-sm text-white line-clamp-2">
+                    {w.title}
+                  </h3>
+
+                  <p className="text-[11px] text-white/40">
+                    {w.categoryName}{" "}
+                    <span className="text-white/20">&gt;</span>{" "}
+                    {w.subcategoryName}
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-auto pt-2">
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        difficultyColor[w.difficulty] ||
+                        "bg-white/10 text-white/50"
+                      }`}
+                    >
+                      {w.difficulty}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-3 border-t border-[#2A2A2A] mt-2">
+                    <button
+                      onClick={() => togglePublished(w.id, w.isPublished)}
+                      className={`w-10 h-6 rounded-full transition-colors relative cursor-pointer border-none ${
+                        w.isPublished ? "bg-[#E51A1A]" : "bg-[#2A2A2A]"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                          w.isPublished ? "left-5" : "left-1"
+                        }`}
+                      />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/admin/workouts/${w.id}/edit`}
+                        className="text-white/50 hover:text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(w.id)}
+                        disabled={deleting === w.id}
+                        className="text-red-400/60 hover:text-red-400 text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/10 transition-colors disabled:opacity-40 cursor-pointer border-none"
+                      >
+                        {deleting === w.id ? "..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

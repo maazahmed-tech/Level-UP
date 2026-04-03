@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/ui/PasswordInput";
+import RemindersCard from "@/components/hub/RemindersCard";
 
 type UserData = {
   id: string;
@@ -11,7 +13,42 @@ type UserData = {
   email: string;
   country: string | null;
   unitPreference: string;
+  age: number | null;
+  gender: string | null;
+  heightCm: number | null;
+  currentWeightKg: number | null;
+  bodyFatPercent: number | null;
+  fitnessGoal: string | null;
+  activityLevel: string | null;
+  dietaryPrefs: string | null;
+  healthConditions: string | null;
+  targetWeightKg: number | null;
 };
+
+const DIETARY_OPTIONS = [
+  "Vegetarian",
+  "Vegan",
+  "Gluten-Free",
+  "Dairy-Free",
+  "Halal",
+  "Keto",
+  "None",
+];
+
+const FITNESS_GOALS = [
+  { value: "fat_loss", label: "Fat Loss" },
+  { value: "muscle_gain", label: "Muscle Gain" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "recomposition", label: "Body Recomposition" },
+];
+
+const ACTIVITY_LEVELS = [
+  { value: "sedentary", label: "Sedentary" },
+  { value: "light", label: "Lightly Active" },
+  { value: "moderate", label: "Moderately Active" },
+  { value: "active", label: "Very Active" },
+  { value: "very_active", label: "Extremely Active" },
+];
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -27,6 +64,19 @@ export default function SettingsPage() {
   const [passwordMsg, setPasswordMsg] = useState("");
   const [showDelete, setShowDelete] = useState(false);
 
+  // Health profile state
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [currentWeightKg, setCurrentWeightKg] = useState("");
+  const [bodyFatPercent, setBodyFatPercent] = useState("");
+  const [fitnessGoal, setFitnessGoal] = useState("");
+  const [activityLevel, setActivityLevel] = useState("");
+  const [targetWeightKg, setTargetWeightKg] = useState("");
+  const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
+  const [healthMsg, setHealthMsg] = useState("");
+  const [healthSaving, setHealthSaving] = useState(false);
+
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
@@ -37,6 +87,23 @@ export default function SettingsPage() {
           setLastName(data.user.lastName);
           setCountry(data.user.country || "");
           setUnit(data.user.unitPreference || "METRIC");
+          // Health fields
+          if (data.user.age) setAge(String(data.user.age));
+          if (data.user.gender) setGender(data.user.gender);
+          if (data.user.heightCm) setHeightCm(String(data.user.heightCm));
+          if (data.user.currentWeightKg) setCurrentWeightKg(String(data.user.currentWeightKg));
+          if (data.user.bodyFatPercent) setBodyFatPercent(String(data.user.bodyFatPercent));
+          if (data.user.fitnessGoal) setFitnessGoal(data.user.fitnessGoal);
+          if (data.user.activityLevel) setActivityLevel(data.user.activityLevel);
+          if (data.user.targetWeightKg) setTargetWeightKg(String(data.user.targetWeightKg));
+          if (data.user.dietaryPrefs) {
+            try {
+              const parsed = JSON.parse(data.user.dietaryPrefs);
+              if (Array.isArray(parsed)) setDietaryPrefs(parsed);
+            } catch {
+              // ignore
+            }
+          }
         }
       })
       .catch(() => {});
@@ -60,6 +127,49 @@ export default function SettingsPage() {
     } catch {
       setProfileMsg("Something went wrong");
     }
+  }
+
+  async function handleHealthSave(e: React.FormEvent) {
+    e.preventDefault();
+    setHealthMsg("");
+    setHealthSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      if (age) payload.age = parseInt(age);
+      if (gender) payload.gender = gender;
+      if (heightCm) payload.heightCm = parseFloat(heightCm);
+      if (currentWeightKg) payload.currentWeightKg = parseFloat(currentWeightKg);
+      if (bodyFatPercent) payload.bodyFatPercent = parseFloat(bodyFatPercent);
+      if (fitnessGoal) payload.fitnessGoal = fitnessGoal;
+      if (activityLevel) payload.activityLevel = activityLevel;
+      if (targetWeightKg) payload.targetWeightKg = parseFloat(targetWeightKg);
+      payload.dietaryPrefs = JSON.stringify(dietaryPrefs.length > 0 ? dietaryPrefs : []);
+
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setHealthMsg("Health profile saved!");
+      } else {
+        const data = await res.json();
+        setHealthMsg(data.error || "Failed to save health profile");
+      }
+    } catch {
+      setHealthMsg("Something went wrong");
+    } finally {
+      setHealthSaving(false);
+    }
+  }
+
+  function toggleDietaryPref(pref: string) {
+    setDietaryPrefs((prev) => {
+      if (pref === "None") return ["None"];
+      const without = prev.filter((p) => p !== "None");
+      if (without.includes(pref)) return without.filter((p) => p !== pref);
+      return [...without, pref];
+    });
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -111,6 +221,9 @@ export default function SettingsPage() {
     return <div className="flex items-center justify-center h-64 text-white/30">Loading...</div>;
   }
 
+  const inputCls =
+    "w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-[#E51A1A] focus:outline-none transition-colors text-white";
+
   return (
     <div className="max-w-[600px]">
       <h1 className="text-3xl font-black mb-8">Settings</h1>
@@ -126,7 +239,7 @@ export default function SettingsPage() {
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-primary focus:outline-none transition-colors"
+                className={inputCls}
               />
             </div>
             <div>
@@ -135,7 +248,7 @@ export default function SettingsPage() {
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-primary focus:outline-none transition-colors"
+                className={inputCls}
               />
             </div>
           </div>
@@ -146,7 +259,7 @@ export default function SettingsPage() {
               type="email"
               value={user.email}
               disabled
-              className="w-full py-3 px-4 border-2 border-[#222] rounded-xl bg-dark/5 text-white/40"
+              className="w-full py-3 px-4 border-2 border-[#222] rounded-xl bg-[#0A0A0A] text-white/40"
             />
           </div>
 
@@ -155,7 +268,7 @@ export default function SettingsPage() {
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-primary focus:outline-none transition-colors"
+              className={inputCls}
             >
               <option value="">Select a country</option>
               <option value="IE">Ireland</option>
@@ -186,7 +299,7 @@ export default function SettingsPage() {
           </div>
 
           {profileMsg && (
-            <p className={`text-sm font-semibold ${profileMsg.includes("success") ? "text-green-600" : "text-primary"}`}>
+            <p className={`text-sm font-semibold ${profileMsg.includes("success") ? "text-green-500" : "text-[#E51A1A]"}`}>
               {profileMsg}
             </p>
           )}
@@ -195,44 +308,203 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      {/* Health Profile */}
+      <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-8 mb-6">
+        <h2 className="text-lg font-bold mb-2">Health Profile</h2>
+        <p className="text-white/40 text-sm mb-5">
+          Fill in your health data to personalise calculators and recommendations.
+        </p>
+        <form onSubmit={handleHealthSave} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-semibold text-sm mb-1.5">Age</label>
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                placeholder="e.g. 25"
+                min={13}
+                max={100}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-sm mb-1.5">Gender</label>
+              <div className="flex gap-2 h-[50px]">
+                {["male", "female"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    className={`flex-1 rounded-xl font-semibold text-sm transition-colors cursor-pointer border-2 ${
+                      gender === g
+                        ? "bg-[#E51A1A] text-white border-[#E51A1A]"
+                        : "bg-[#1E1E1E] text-white/60 border-[#2A2A2A] hover:border-[#E51A1A]/50"
+                    }`}
+                  >
+                    {g === "male" ? "Male" : "Female"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-semibold text-sm mb-1.5">Height (cm)</label>
+              <input
+                type="number"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="e.g. 175"
+                step="0.1"
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-sm mb-1.5">Current Weight (kg)</label>
+              <input
+                type="number"
+                value={currentWeightKg}
+                onChange={(e) => setCurrentWeightKg(e.target.value)}
+                placeholder="e.g. 80"
+                step="0.1"
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-semibold text-sm mb-1.5">
+                Body Fat % <span className="text-white/30 font-normal">(optional)</span>
+              </label>
+              <input
+                type="number"
+                value={bodyFatPercent}
+                onChange={(e) => setBodyFatPercent(e.target.value)}
+                placeholder="e.g. 18"
+                step="0.1"
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-sm mb-1.5">
+                Target Weight (kg) <span className="text-white/30 font-normal">(optional)</span>
+              </label>
+              <input
+                type="number"
+                value={targetWeightKg}
+                onChange={(e) => setTargetWeightKg(e.target.value)}
+                placeholder="e.g. 75"
+                step="0.1"
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-sm mb-1.5">Fitness Goal</label>
+            <select
+              value={fitnessGoal}
+              onChange={(e) => setFitnessGoal(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Select a goal</option>
+              {FITNESS_GOALS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-sm mb-1.5">Activity Level</label>
+            <select
+              value={activityLevel}
+              onChange={(e) => setActivityLevel(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Select activity level</option>
+              {ACTIVITY_LEVELS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-sm mb-2">Dietary Preferences</label>
+            <div className="flex flex-wrap gap-2">
+              {DIETARY_OPTIONS.map((pref) => (
+                <button
+                  key={pref}
+                  type="button"
+                  onClick={() => toggleDietaryPref(pref)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors cursor-pointer border-2 ${
+                    dietaryPrefs.includes(pref)
+                      ? "bg-[#E51A1A] text-white border-[#E51A1A]"
+                      : "bg-[#1E1E1E] text-white/60 border-[#2A2A2A] hover:border-[#E51A1A]/50"
+                  }`}
+                >
+                  {pref}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {healthMsg && (
+            <p className={`text-sm font-semibold ${healthMsg.includes("saved") ? "text-green-500" : "text-[#E51A1A]"}`}>
+              {healthMsg}
+            </p>
+          )}
+
+          <Button type="submit">
+            {healthSaving ? "Saving..." : "Save Health Profile"}
+          </Button>
+        </form>
+      </div>
+
+      {/* Reminders */}
+      <RemindersCard />
+
       {/* Password */}
       <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-8 mb-6">
         <h2 className="text-lg font-bold mb-5">Change Password</h2>
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
             <label className="block font-semibold text-sm mb-1.5">Current Password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
-              className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-primary focus:outline-none transition-colors"
+              className={inputCls}
             />
           </div>
           <div>
             <label className="block font-semibold text-sm mb-1.5">New Password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Min 8 chars, 1 letter, 1 number"
               required
-              className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-primary focus:outline-none transition-colors"
+              className={inputCls}
             />
           </div>
           <div>
             <label className="block font-semibold text-sm mb-1.5">Confirm New Password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl bg-[#1E1E1E] focus:border-primary focus:outline-none transition-colors"
+              className={inputCls}
             />
           </div>
 
           {passwordMsg && (
-            <p className={`text-sm font-semibold ${passwordMsg.includes("success") ? "text-green-600" : "text-primary"}`}>
+            <p className={`text-sm font-semibold ${passwordMsg.includes("success") ? "text-green-500" : "text-[#E51A1A]"}`}>
               {passwordMsg}
             </p>
           )}
@@ -244,8 +516,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-8 border-2 border-primary/20">
-        <h2 className="text-lg font-bold mb-3 text-primary">Danger Zone</h2>
+      <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-8 border-2 border-[#E51A1A]/20">
+        <h2 className="text-lg font-bold mb-3 text-[#E51A1A]">Danger Zone</h2>
         <p className="text-white/50 text-sm mb-4">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
@@ -253,13 +525,13 @@ export default function SettingsPage() {
           <div className="flex gap-3">
             <button
               onClick={handleDeleteAccount}
-              className="px-5 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm cursor-pointer border-none"
+              className="px-5 py-2.5 bg-[#E51A1A] text-white rounded-lg font-semibold text-sm cursor-pointer border-none"
             >
               Yes, Delete My Account
             </button>
             <button
               onClick={() => setShowDelete(false)}
-              className="px-5 py-2.5 bg-dark/10 text-white rounded-lg font-semibold text-sm cursor-pointer border-none"
+              className="px-5 py-2.5 bg-[#2A2A2A] text-white rounded-lg font-semibold text-sm cursor-pointer border-none"
             >
               Cancel
             </button>
@@ -267,7 +539,7 @@ export default function SettingsPage() {
         ) : (
           <button
             onClick={() => setShowDelete(true)}
-            className="px-5 py-2.5 border-2 border-primary text-primary rounded-lg font-semibold text-sm cursor-pointer bg-transparent hover:bg-primary/5 transition-colors"
+            className="px-5 py-2.5 border-2 border-[#E51A1A] text-[#E51A1A] rounded-lg font-semibold text-sm cursor-pointer bg-transparent hover:bg-[#E51A1A]/5 transition-colors"
           >
             Delete Account
           </button>

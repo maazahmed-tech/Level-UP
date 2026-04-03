@@ -26,6 +26,16 @@ export async function GET() {
       role: user.role,
       unitPreference: user.unitPreference,
       createdAt: user.createdAt,
+      age: user.age,
+      gender: user.gender,
+      heightCm: user.heightCm,
+      currentWeightKg: user.currentWeightKg,
+      bodyFatPercent: user.bodyFatPercent,
+      fitnessGoal: user.fitnessGoal,
+      activityLevel: user.activityLevel,
+      dietaryPrefs: user.dietaryPrefs,
+      healthConditions: user.healthConditions,
+      targetWeightKg: user.targetWeightKg,
     },
   });
 }

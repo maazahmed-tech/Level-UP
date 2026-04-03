@@ -11,8 +11,19 @@ export async function GET() {
         author: {
           select: { id: true, firstName: true, lastName: true, role: true },
         },
-        likes: true,
-        comments: true,
+        likes: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+        comments: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, role: true },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
         _count: { select: { likes: true, comments: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -35,6 +46,19 @@ export async function GET() {
       likedByMe: user
         ? post.likes.some((like) => like.userId === user.userId)
         : false,
+      likes: post.likes.map((like) => ({
+        id: like.id,
+        user: {
+          firstName: like.user.firstName,
+          lastName: like.user.lastName,
+        },
+      })),
+      comments: post.comments.map((c) => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt.toISOString(),
+        user: c.user,
+      })),
     }));
 
     return NextResponse.json({ posts: formatted });
@@ -90,6 +114,8 @@ export async function POST(request: Request) {
         likeCount: post._count.likes,
         commentCount: post._count.comments,
         likedByMe: false,
+        likes: [],
+        comments: [],
       },
     });
   } catch (error) {

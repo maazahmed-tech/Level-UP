@@ -10,6 +10,7 @@ const sidebarLinks = [
   { href: "/admin/workouts", label: "Workouts" },
   { href: "/admin/testimonials", label: "Testimonials" },
   { href: "/admin/restaurants", label: "Restaurants" },
+  { href: "/admin/food-database", label: "Food Database" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/signup-requests", label: "Signup Requests" },
   { href: "/admin/feed", label: "Feed" },

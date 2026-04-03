@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -64,9 +65,8 @@ export default function ResetPasswordPage() {
               <label htmlFor="password" className="block font-semibold text-sm mb-1.5">
                 New Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min 8 characters, 1 letter, 1 number"
@@ -79,9 +79,8 @@ export default function ResetPasswordPage() {
               <label htmlFor="confirm" className="block font-semibold text-sm mb-1.5">
                 Confirm Password
               </label>
-              <input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Re-enter your password"

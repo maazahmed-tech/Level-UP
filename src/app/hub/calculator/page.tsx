@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Gender = "male" | "female";
 type Goal = "lose" | "maintain" | "build";
@@ -24,11 +24,11 @@ interface Results {
 }
 
 const ACTIVITY_LEVELS = [
-  { label: "Sedentary", multiplier: 1.2, desc: "Little or no exercise" },
-  { label: "Lightly Active", multiplier: 1.375, desc: "Light exercise 1-3 days/week" },
-  { label: "Moderately Active", multiplier: 1.55, desc: "Moderate exercise 3-5 days/week" },
-  { label: "Very Active", multiplier: 1.725, desc: "Hard exercise 6-7 days/week" },
-  { label: "Extremely Active", multiplier: 1.9, desc: "Very hard exercise, physical job" },
+  { label: "Sedentary", multiplier: 1.2, desc: "Little or no exercise", key: "sedentary" },
+  { label: "Lightly Active", multiplier: 1.375, desc: "Light exercise 1-3 days/week", key: "light" },
+  { label: "Moderately Active", multiplier: 1.55, desc: "Moderate exercise 3-5 days/week", key: "moderate" },
+  { label: "Very Active", multiplier: 1.725, desc: "Hard exercise 6-7 days/week", key: "active" },
+  { label: "Extremely Active", multiplier: 1.9, desc: "Very hard exercise, physical job", key: "very_active" },
 ];
 
 const GOAL_ADJUSTMENTS: Record<Goal, Record<Intensity, number>> = {
@@ -138,6 +138,31 @@ export default function CalculatorPage() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Pre-fill from health profile
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.user) {
+          const u = data.user;
+          if (u.gender && (u.gender === "male" || u.gender === "female")) {
+            setGender(u.gender as Gender);
+          }
+          if (u.age) setAge(String(u.age));
+          if (u.heightCm) setHeightCm(String(u.heightCm));
+          if (u.currentWeightKg) setWeightVal(String(u.currentWeightKg));
+          if (u.bodyFatPercent) setBodyFat(String(u.bodyFatPercent));
+          if (u.activityLevel) {
+            const idx = ACTIVITY_LEVELS.findIndex((a) => a.key === u.activityLevel);
+            if (idx >= 0) setActivityIdx(idx);
+          }
+          setProfileLoaded(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -192,12 +217,10 @@ export default function CalculatorPage() {
     let formulaUsed: string;
 
     if (bodyFatNum !== null) {
-      // Katch-McArdle
       const lbm = weightKg * (1 - bodyFatNum / 100);
       bmr = 370 + 21.6 * lbm;
       formulaUsed = "Katch-McArdle";
     } else {
-      // Mifflin-St Jeor
       bmr =
         gender === "male"
           ? 10 * weightKg + 6.25 * heightCmVal - 5 * ageNum + 5
@@ -217,12 +240,10 @@ export default function CalculatorPage() {
     let fatGrams: number;
 
     if (bodyFatNum !== null) {
-      // Use LBM-based protein
       const lbm = weightKg * (1 - bodyFatNum / 100);
       proteinGrams = Math.round(2.0 * lbm);
       const proteinCal = proteinGrams * 4;
       const remainingCal = targetCalories - proteinCal;
-      // Split remaining between carbs and fat based on goal ratios (excluding protein)
       const carbsRatio = split.carbs / (split.carbs + split.fat);
       const fatRatio = split.fat / (split.carbs + split.fat);
       carbsGrams = Math.round((remainingCal * carbsRatio) / 4);
@@ -311,6 +332,13 @@ export default function CalculatorPage() {
         Get personalised calorie and macro targets based on your body stats and
         goals.
       </p>
+
+      {profileLoaded && (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl px-4 py-3 mb-6 flex items-center gap-2">
+          <span className="text-green-400 text-sm font-semibold">Pre-filled from your Health Profile</span>
+          <span className="text-white/30 text-xs">- update in Settings</span>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* INPUT FORM */}
@@ -453,7 +481,7 @@ export default function CalculatorPage() {
                   className="w-full border-2 border-[#2A2A2A] rounded-xl py-3 px-4 focus:border-[#E51A1A] focus:outline-none bg-[#1E1E1E] text-white placeholder:text-white/30"
                 />
                 <p className="text-xs text-white/30 mt-1">
-                  Optional — provides more accurate results using the
+                  Optional -- provides more accurate results using the
                   Katch-McArdle formula
                 </p>
                 {errors.bodyFat && (

@@ -74,7 +74,16 @@
       "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/admin/testimonials\" -H \"Cookie: \")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"https://level-up-v1-tau.vercel.app/\")",
       "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/login\" -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"admin@levelup.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"adminuser1234\"\"\"\"}')",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/login\" -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"demo@levelup.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"user1234\"\"\"\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://level-up-v1-tau.vercel.app/api/feed\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://level-up-v1-tau.vercel.app/api/admin/workouts/categories\")",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/feed\")",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/register\" -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"firstName\"\"\"\":\"\"\"\"Test\"\"\"\",\"\"\"\"lastName\"\"\"\":\"\"\"\"Verify\"\"\"\",\"\"\"\"email\"\"\"\":\"\"\"\"verify.test@test.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"TestVerify1\"\"\"\",\"\"\"\"country\"\"\"\":\"\"\"\"PK\"\"\"\",\"\"\"\"plan\"\"\"\":\"\"\"\"HUB\"\"\"\",\"\"\"\"planStatus\"\"\"\":\"\"\"\"PENDING\"\"\"\"}')",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/login\" -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"verify.test@test.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"TestVerify1\"\"\"\"}')",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/login\" -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"admin@levelup.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"wrongpass\"\"\"\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://level-up-v1-tau.vercel.app/hub\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://level-up-v1-tau.vercel.app/admin\")"
     ]
   }
 }

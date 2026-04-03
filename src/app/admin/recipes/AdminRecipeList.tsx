@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 12;
 
 const CATEGORY_EMOJI: Record<string, string> = {
   Breakfast: "\uD83E\uDD5E",
@@ -120,68 +120,69 @@ export default function AdminRecipeList({
         </select>
       </div>
 
-      {/* Table */}
-      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
-        {/* Header row */}
-        <div className="hidden md:grid grid-cols-[60px_1fr_120px_80px_100px_140px] gap-4 px-6 py-3 bg-[#1E1E1E]/5 text-xs font-semibold text-white/40 uppercase tracking-wide">
-          <span></span>
-          <span>Title</span>
-          <span>Category</span>
-          <span>Calories</span>
-          <span>Status</span>
-          <span>Actions</span>
+      {/* Card Grid */}
+      {paginated.length === 0 ? (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl px-6 py-12 text-center text-white/30 text-sm">
+          No recipes found.
         </div>
-
-        {paginated.length === 0 ? (
-          <div className="px-6 py-12 text-center text-white/30 text-sm">
-            No recipes found.
-          </div>
-        ) : (
-          paginated.map((recipe) => (
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {paginated.map((recipe) => (
             <div
               key={recipe.id}
-              className="grid grid-cols-1 md:grid-cols-[60px_1fr_120px_80px_100px_140px] gap-2 md:gap-4 px-6 py-4 border-b border-[#2A2A2A] items-center hover:bg-[#1E1E1E]/[0.02] transition-colors"
+              className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 flex flex-col gap-3 hover:border-[#3A3A3A] transition-colors"
             >
-              <span className="text-2xl">
-                {CATEGORY_EMOJI[recipe.category] || "\uD83C\uDF7D\uFE0F"}
-              </span>
-              <span className="font-medium text-sm text-white">
-                {recipe.title}
-              </span>
-              <span className="text-xs text-white/60 bg-[#1E1E1E]/5 rounded-full px-3 py-1 w-fit">
-                {recipe.category}
-              </span>
-              <span className="text-sm text-white/60">
-                {recipe.calories} kcal
-              </span>
-              <button
-                onClick={() => togglePublished(recipe.id, recipe.isPublished)}
-                className={`text-xs font-semibold px-3 py-1 rounded-full w-fit cursor-pointer border-none ${
-                  recipe.isPublished
-                    ? "bg-green-900/40 text-green-400"
-                    : "bg-[#1E1E1E]/5 text-white/30"
-                }`}
-              >
-                {recipe.isPublished ? "Published" : "Draft"}
-              </button>
-              <div className="flex gap-2">
-                <Link
-                  href={`/admin/recipes/${recipe.id}/edit`}
-                  className="text-xs px-3 py-1.5 bg-[#E51A1A]/10 text-[#E51A1A] rounded-lg font-medium hover:bg-[#E51A1A]/20 transition-colors"
-                >
-                  Edit
-                </Link>
+              {/* Top: Emoji + Title */}
+              <div className="flex items-start gap-3">
+                <span className="text-3xl shrink-0">
+                  {CATEGORY_EMOJI[recipe.category] || "\uD83C\uDF7D\uFE0F"}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-white truncate">
+                    {recipe.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[11px] text-white/50 bg-[#2A2A2A] rounded-full px-2.5 py-0.5">
+                      {recipe.category}
+                    </span>
+                    <span className="text-[11px] text-white/40">
+                      {recipe.calories} kcal
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom: Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-[#2A2A2A]">
                 <button
-                  onClick={() => deleteRecipe(recipe.id, recipe.title)}
-                  className="text-xs px-3 py-1.5 bg-red-900/20 text-red-400 rounded-lg font-medium hover:bg-red-900/40 transition-colors cursor-pointer border-none"
+                  onClick={() => togglePublished(recipe.id, recipe.isPublished)}
+                  className={`text-[11px] font-semibold px-3 py-1 rounded-full cursor-pointer border-none ${
+                    recipe.isPublished
+                      ? "bg-green-900/40 text-green-400"
+                      : "bg-[#2A2A2A] text-white/30"
+                  }`}
                 >
-                  Delete
+                  {recipe.isPublished ? "Published" : "Draft"}
                 </button>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/admin/recipes/${recipe.id}/edit`}
+                    className="text-[11px] px-3 py-1.5 bg-[#E51A1A]/10 text-[#E51A1A] rounded-lg font-medium hover:bg-[#E51A1A]/20 transition-colors"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    onClick={() => deleteRecipe(recipe.id, recipe.title)}
+                    className="text-[11px] px-3 py-1.5 bg-red-900/20 text-red-400 rounded-lg font-medium hover:bg-red-900/40 transition-colors cursor-pointer border-none"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
