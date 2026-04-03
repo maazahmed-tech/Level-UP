@@ -19,6 +19,7 @@ const sidebarLinks = [
   { href: "/hub/steps", label: "Steps" },
   { href: "/hub/favourites", label: "Favourites" },
   { href: "/hub/messages", label: "Messages" },
+  { href: "/hub/notifications", label: "Notifications" },
   { href: "/hub/settings", label: "Settings" },
 ];
 

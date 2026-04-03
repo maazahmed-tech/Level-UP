@@ -17,6 +17,7 @@ const sidebarLinks = [
   { href: "/admin/content", label: "Site Content" },
   { href: "/admin/assets", label: "Assets" },
   { href: "/admin/messages", label: "Messages" },
+  { href: "/admin/notifications", label: "Notifications" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -16,27 +16,36 @@ export default async function AdminUserDetailPage({ params }: Props) {
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
-      mealLogs: { orderBy: { loggedDate: "desc" }, take: 20 },
-      weightLogs: { orderBy: { loggedDate: "desc" }, take: 30 },
-      progressPhotos: { orderBy: { photoDate: "desc" }, take: 10 },
+      mealLogs: { orderBy: { loggedDate: "desc" }, take: 30 },
+      weightLogs: { orderBy: { loggedDate: "desc" }, take: 90 },
+      progressPhotos: { orderBy: { photoDate: "desc" }, take: 20 },
       macroTarget: true,
       favourites: { include: { recipe: true } },
+      stepLogs: { orderBy: { loggedDate: "desc" }, take: 30 },
+      bodyMeasurements: { orderBy: { loggedDate: "desc" }, take: 10 },
     },
   });
 
   if (!user) redirect("/admin/users");
 
-  // Fetch last 5 messages involving this user
+  // Fetch last 20 messages involving this user
   const messages = await prisma.message.findMany({
     where: {
       OR: [{ senderId: id }, { receiverId: id }],
     },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 20,
     include: {
       sender: { select: { firstName: true, lastName: true } },
       receiver: { select: { firstName: true, lastName: true } },
     },
+  });
+
+  // Fetch notifications for this user
+  const notifications = await prisma.notification.findMany({
+    where: { userId: id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
   });
 
   // Serialize dates for client component
@@ -55,6 +64,17 @@ export default async function AdminUserDetailPage({ params }: Props) {
     paymentScreenshot: user.paymentScreenshot || null,
     paymentAccountName: user.paymentAccountName || null,
     paymentTransactionRef: user.paymentTransactionRef || null,
+    // Health profile
+    age: user.age,
+    gender: user.gender,
+    heightCm: user.heightCm,
+    currentWeightKg: user.currentWeightKg,
+    bodyFatPercent: user.bodyFatPercent,
+    fitnessGoal: user.fitnessGoal,
+    activityLevel: user.activityLevel,
+    dietaryPrefs: user.dietaryPrefs,
+    healthConditions: user.healthConditions,
+    targetWeightKg: user.targetWeightKg,
     macroTarget: user.macroTarget
       ? {
           calories: user.macroTarget.calories,
@@ -74,6 +94,8 @@ export default async function AdminUserDetailPage({ params }: Props) {
       fat: m.fat,
       loggedDate: m.loggedDate.toISOString(),
       loggedTime: m.loggedTime,
+      imageData: m.imageData || null,
+      ingredients: m.ingredients || null,
     })),
     weightLogs: user.weightLogs.map((w) => ({
       id: w.id,
@@ -96,6 +118,22 @@ export default async function AdminUserDetailPage({ params }: Props) {
         protein: f.recipe.protein,
       },
     })),
+    stepLogs: user.stepLogs.map((s) => ({
+      id: s.id,
+      steps: s.steps,
+      goal: s.goal,
+      loggedDate: s.loggedDate.toISOString(),
+    })),
+    bodyMeasurements: user.bodyMeasurements.map((b) => ({
+      id: b.id,
+      loggedDate: b.loggedDate.toISOString(),
+      weightKg: b.weightKg,
+      bellyInches: b.bellyInches,
+      chestInches: b.chestInches,
+      waistInches: b.waistInches,
+      hipsInches: b.hipsInches,
+      armsInches: b.armsInches,
+    })),
     messages: messages.map((m) => ({
       id: m.id,
       content: m.content,
@@ -104,6 +142,14 @@ export default async function AdminUserDetailPage({ params }: Props) {
       senderName: `${m.sender.firstName} ${m.sender.lastName}`,
       receiverName: `${m.receiver.firstName} ${m.receiver.lastName}`,
       isSentByUser: m.senderId === id,
+    })),
+    notifications: notifications.map((n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      type: n.type,
+      isRead: n.isRead,
+      createdAt: n.createdAt.toISOString(),
     })),
   };
 

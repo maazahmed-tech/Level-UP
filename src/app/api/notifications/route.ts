@@ -11,6 +11,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const countOnly = searchParams.get("count") === "true";
+    const typeFilter = searchParams.get("type");
 
     if (countOnly) {
       const count = await prisma.notification.count({
@@ -19,10 +20,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ count });
     }
 
+    const where: Record<string, unknown> = { userId: user.userId };
+    if (typeFilter) {
+      where.type = typeFilter;
+    }
+
     const notifications = await prisma.notification.findMany({
-      where: { userId: user.userId },
+      where,
       orderBy: { createdAt: "desc" },
-      take: 20,
     });
 
     return NextResponse.json({

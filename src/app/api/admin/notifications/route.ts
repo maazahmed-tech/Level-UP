@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const notifType = type || "SYSTEM";
+    const notifType = type || "system";
 
     if (userId) {
       // Send to specific user
@@ -31,12 +31,12 @@ export async function POST(request: Request) {
           type: notifType,
         },
       });
-      return NextResponse.json({ notification });
+      return NextResponse.json({ notification, sent: 1 });
     }
 
-    // Send to all users
+    // Send to all active users
     const users = await prisma.user.findMany({
-      where: { role: "USER" },
+      where: { role: "USER", isActive: true },
       select: { id: true },
     });
 
@@ -71,7 +71,7 @@ export async function GET() {
 
     const notifications = await prisma.notification.findMany({
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 100,
       include: {
         user: {
           select: { firstName: true, lastName: true, email: true },
