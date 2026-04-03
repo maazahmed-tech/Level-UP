@@ -163,6 +163,55 @@ export default function AdminMessagesPage() {
     return d.toLocaleDateString("en-IE", { day: "numeric", month: "short" });
   }
 
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [userResults, setUserResults] = useState<{ id: string; firstName: string; lastName: string; email: string }[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+
+  // Search users for new conversation
+  useEffect(() => {
+    if (!userSearch.trim() || !showNewChat) {
+      setUserResults([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      setSearchingUsers(true);
+      try {
+        const res = await fetch("/api/admin/users");
+        if (res.ok) {
+          const data = await res.json();
+          const users = (data.users || []).filter((u: { firstName: string; lastName: string; email: string; role: string }) =>
+            u.role !== "ADMIN" &&
+            (`${u.firstName} ${u.lastName}`.toLowerCase().includes(userSearch.toLowerCase()) ||
+              u.email.toLowerCase().includes(userSearch.toLowerCase()))
+          );
+          setUserResults(users.slice(0, 8));
+        }
+      } catch { /* ignore */ }
+      setSearchingUsers(false);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [userSearch, showNewChat]);
+
+  function startNewConversation(user: { id: string; firstName: string; lastName: string }) {
+    // Check if conversation already exists
+    const existing = conversations.find((c) => c.userId === user.id);
+    if (existing) {
+      selectConversation(user.id);
+    } else {
+      // Add temporary conversation entry and select it
+      setConversations((prev) => [
+        { userId: user.id, firstName: user.firstName, lastName: user.lastName, role: "USER", lastMessage: "", lastMessageDate: new Date().toISOString(), unreadCount: 0 },
+        ...prev,
+      ]);
+      setSelectedUserId(user.id);
+      setShowSidebar(false);
+    }
+    setShowNewChat(false);
+    setUserSearch("");
+    setUserResults([]);
+  }
+
   const selectedConv = conversations.find((c) => c.userId === selectedUserId);
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
@@ -180,7 +229,51 @@ export default function AdminMessagesPage() {
             )}
           </p>
         </div>
+        <button
+          onClick={() => setShowNewChat(!showNewChat)}
+          className="px-4 py-2 bg-[#E51A1A] text-white text-sm font-semibold rounded-xl hover:bg-[#C41010] transition-colors cursor-pointer border-none"
+        >
+          + New Message
+        </button>
       </div>
+
+      {/* New conversation search */}
+      {showNewChat && (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+          <p className="text-sm font-semibold text-white mb-3">Start a new conversation</p>
+          <input
+            type="text"
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            placeholder="Search user by name or email..."
+            className="w-full px-4 py-3 bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#E51A1A] transition-colors"
+            autoFocus
+          />
+          {searchingUsers && <p className="text-xs text-white/30 mt-2">Searching...</p>}
+          {userResults.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {userResults.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => startNewConversation(u)}
+                  className="w-full text-left px-4 py-3 rounded-xl bg-transparent hover:bg-white/5 transition-colors cursor-pointer border-none flex items-center gap-3"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#2A2A2A] flex items-center justify-center text-white/60 font-bold text-[10px] flex-shrink-0">
+                    {u.firstName[0]}{u.lastName[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{u.firstName} {u.lastName}</p>
+                    <p className="text-xs text-white/40 truncate">{u.email}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {userSearch.trim() && !searchingUsers && userResults.length === 0 && (
+            <p className="text-xs text-white/30 mt-2">No users found</p>
+          )}
+        </div>
+      )}
 
       <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden flex h-[calc(100vh-200px)] min-h-[500px]">
         {/* Conversations sidebar */}
@@ -374,9 +467,15 @@ export default function AdminMessagesPage() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-white/30 text-sm">
-                  Select a conversation to start messaging
+                <p className="text-white/30 text-sm mb-3">
+                  Select a conversation or start a new one
                 </p>
+                <button
+                  onClick={() => { setShowSidebar(true); setShowNewChat(true); }}
+                  className="px-4 py-2 bg-[#E51A1A] text-white text-sm font-semibold rounded-xl hover:bg-[#C41010] transition-colors cursor-pointer border-none"
+                >
+                  + New Message
+                </button>
               </div>
             </div>
           )}
