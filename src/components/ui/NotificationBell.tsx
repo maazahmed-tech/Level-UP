@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 interface Notification {
   id: number;
@@ -9,6 +10,7 @@ interface Notification {
   type: string;
   isRead: boolean;
   createdAt: string;
+  actionUrl?: string | null;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -79,6 +81,7 @@ function NotifIcon({ type }: { type: string }) {
 }
 
 export default function NotificationBell() {
+  const router = useRouter();
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -148,6 +151,16 @@ export default function NotificationBell() {
     }
   }
 
+  async function handleNotificationClick(n: Notification) {
+    if (!n.isRead) {
+      await markAsRead(n.id);
+    }
+    if (n.actionUrl) {
+      setOpen(false);
+      router.push(n.actionUrl);
+    }
+  }
+
   async function markAllRead() {
     try {
       await fetch("/api/notifications", {
@@ -207,10 +220,10 @@ export default function NotificationBell() {
               notifications.slice(0, 10).map((n) => (
                 <button
                   key={n.id}
-                  onClick={() => !n.isRead && markAsRead(n.id)}
+                  onClick={() => handleNotificationClick(n)}
                   className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-none cursor-pointer ${
                     n.isRead
-                      ? "bg-transparent"
+                      ? "bg-transparent hover:bg-white/5"
                       : "bg-[#E51A1A]/5 hover:bg-[#E51A1A]/10"
                   }`}
                 >
@@ -230,9 +243,26 @@ export default function NotificationBell() {
                       {timeAgo(n.createdAt)}
                     </p>
                   </div>
-                  {!n.isRead && (
-                    <div className="mt-2 w-2 h-2 rounded-full bg-[#E51A1A] shrink-0" />
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                    {!n.isRead && (
+                      <div className="w-2 h-2 rounded-full bg-[#E51A1A]" />
+                    )}
+                    {n.actionUrl && (
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-white/30"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    )}
+                  </div>
                 </button>
               ))
             )}

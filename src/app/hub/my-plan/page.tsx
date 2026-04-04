@@ -1,0 +1,474 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+
+type Workout = {
+  id: number;
+  title: string;
+  videoUrl: string;
+  description: string;
+  slug: string;
+};
+
+type PlanData = {
+  plan: {
+    id: number;
+    name: string;
+    type: string;
+    startDate: string;
+    weekNumber: number;
+    dayOfWeek: number;
+    totalWeeks: number;
+  } | null;
+  today: {
+    workout: Workout | null;
+    mealPlan: string | null;
+    calorieTarget: number | null;
+    proteinTarget: number | null;
+    carbsTarget: number | null;
+    fatTarget: number | null;
+    notes: string | null;
+    workoutNotes: string | null;
+  };
+  todayProgress: {
+    workoutCompleted: boolean;
+    mealsCompleted: boolean;
+  };
+  weekProgress: {
+    date: string;
+    workoutCompleted: boolean;
+    mealsCompleted: boolean;
+  }[];
+};
+
+type Target = {
+  id: number;
+  metric: string;
+  targetValue: number;
+  currentValue: number | null;
+};
+
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+
+export default function MyPlanPage() {
+  const [data, setData] = useState<PlanData | null>(null);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [planRes, targetRes] = await Promise.all([
+        fetch("/api/user/plan"),
+        fetch("/api/user/targets"),
+      ]);
+      const planData = await planRes.json();
+      const targetData = await targetRes.json();
+      if (!planData.error) setData(planData);
+      if (targetData.targets) setTargets(targetData.targets);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  async function toggleProgress(field: "workoutCompleted" | "mealsCompleted") {
+    if (!data || saving) return;
+    setSaving(true);
+    const current = data.todayProgress[field];
+    try {
+      const res = await fetch("/api/user/plan/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: !current }),
+      });
+      const result = await res.json();
+      if (!result.error) {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                todayProgress: {
+                  ...prev.todayProgress,
+                  ...result,
+                },
+              }
+            : prev
+        );
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function getDayStatus(dayIndex: number) {
+    // dayIndex is 0-based (Mon=0), dayOfWeek is 1-based (Mon=1)
+    if (!data?.plan) return "future";
+    const dayNum = dayIndex + 1;
+    const today = data.plan.dayOfWeek;
+
+    if (dayNum === today) return "today";
+    if (dayNum > today) return "future";
+
+    // Past day: check if completed
+    const mondayDate = new Date();
+    const currentDow = mondayDate.getDay() === 0 ? 7 : mondayDate.getDay();
+    mondayDate.setDate(mondayDate.getDate() - (currentDow - 1));
+
+    const targetDate = new Date(mondayDate);
+    targetDate.setDate(targetDate.getDate() + dayIndex);
+    const dateStr = targetDate.toISOString().split("T")[0];
+
+    const progress = data.weekProgress.find((p) => {
+      const pDate = new Date(p.date).toISOString().split("T")[0];
+      return pDate === dateStr;
+    });
+
+    if (progress && (progress.workoutCompleted || progress.mealsCompleted)) {
+      return "completed";
+    }
+    return "incomplete";
+  }
+
+  function getTargetPercent(t: Target) {
+    if (!t.currentValue || t.targetValue === 0) return 0;
+    // For metrics like weight where lower is better, invert
+    if (t.metric === "weight" || t.metric === "belly" || t.metric === "waist") {
+      if (t.currentValue <= t.targetValue) return 100;
+      // How much progress made (assuming start was higher)
+      return Math.min(100, Math.round((t.targetValue / t.currentValue) * 100));
+    }
+    return Math.min(100, Math.round((t.currentValue / t.targetValue) * 100));
+  }
+
+  function getTargetColor(percent: number) {
+    if (percent >= 90) return "#22C55E";
+    if (percent >= 50) return "#FF6B00";
+    return "#E51A1A";
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div>
+        <h1 className="text-3xl font-black text-white mb-6">My Plan</h1>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 animate-pulse"
+            >
+              <div className="h-4 bg-[#2A2A2A] rounded w-48 mb-3" />
+              <div className="h-6 bg-[#2A2A2A] rounded w-32" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // No plan state
+  if (!data?.plan) {
+    return (
+      <div>
+        <h1 className="text-3xl font-black text-white mb-6">My Plan</h1>
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-10 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#2A2A2A] flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.251 2.251 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">No plan assigned yet</h2>
+          <p className="text-white/50 mb-6">
+            Your coach will assign you a personalised training and nutrition plan soon.
+          </p>
+          <Link
+            href="/hub/messages"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#E51A1A] text-white font-semibold rounded-xl hover:bg-[#C41717] transition-colors"
+          >
+            Message your coach
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const plan = data.plan;
+  const today = data.today;
+  const progress = data.todayProgress;
+
+  // Count completed days this week
+  const completedDays = data.weekProgress.filter(
+    (p) => p.workoutCompleted || p.mealsCompleted
+  ).length;
+  // Past days count (including today)
+  const pastDays = plan.dayOfWeek;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-black text-white mb-1">{plan.name}</h1>
+        <p className="text-white/50">
+          Week {plan.weekNumber} of {plan.totalWeeks} &middot; Day {plan.dayOfWeek}
+        </p>
+      </div>
+
+      {/* Week Row */}
+      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 mb-6">
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-4">
+          This Week
+        </p>
+        <div className="flex justify-between gap-2">
+          {DAY_LABELS.map((label, i) => {
+            const status = getDayStatus(i);
+            return (
+              <div key={i} className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] text-white/40 font-semibold">{label}</span>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                    status === "today"
+                      ? "border-2 border-[#E51A1A] text-white bg-[#E51A1A]/10"
+                      : status === "completed"
+                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                      : status === "incomplete"
+                      ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                      : "bg-[#2A2A2A] text-white/20"
+                  }`}
+                >
+                  {status === "completed" ? (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    i + 1
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs text-white/30 mt-4 text-center">
+          {completedDays}/{pastDays} days completed this week
+        </p>
+      </div>
+
+      {/* Today's Detail */}
+      <div className="space-y-6">
+        {/* Workout Section */}
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white">Workout</h2>
+            {today.workout && (
+              <button
+                onClick={() => toggleProgress("workoutCompleted")}
+                disabled={saving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer border-none ${
+                  progress.workoutCompleted
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-[#2A2A2A] text-white/50 hover:text-white hover:bg-[#333]"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                    progress.workoutCompleted
+                      ? "bg-green-500 border-green-500"
+                      : "border-white/30"
+                  }`}
+                >
+                  {progress.workoutCompleted && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                {progress.workoutCompleted ? "Completed" : "Mark Complete"}
+              </button>
+            )}
+          </div>
+
+          {today.workout ? (
+            <div>
+              <h3 className="text-xl font-bold text-white mb-2">{today.workout.title}</h3>
+              <p className="text-white/50 text-sm mb-4">{today.workout.description}</p>
+              {today.workoutNotes && (
+                <p className="text-white/40 text-sm mb-4 italic">
+                  Coach notes: {today.workoutNotes}
+                </p>
+              )}
+              <Link
+                href={`/hub/workouts/${today.workout.slug}`}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E51A1A] text-white font-semibold rounded-xl hover:bg-[#C41717] transition-colors text-sm"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                </svg>
+                Watch Video
+              </Link>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-white/40 text-lg font-semibold">Rest Day</p>
+              {today.notes && (
+                <p className="text-white/30 text-sm mt-2">{today.notes}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Meal Plan Section */}
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white">Nutrition</h2>
+            <button
+              onClick={() => toggleProgress("mealsCompleted")}
+              disabled={saving}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer border-none ${
+                progress.mealsCompleted
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-[#2A2A2A] text-white/50 hover:text-white hover:bg-[#333]"
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                  progress.mealsCompleted
+                    ? "bg-green-500 border-green-500"
+                    : "border-white/30"
+                }`}
+              >
+                {progress.mealsCompleted && (
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              {progress.mealsCompleted ? "Completed" : "Mark Complete"}
+            </button>
+          </div>
+
+          {/* Calorie Target */}
+          {today.calorieTarget && (
+            <div className="mb-5">
+              <p className="text-xs text-white/40 uppercase tracking-wide mb-1">
+                Calorie Target
+              </p>
+              <p className="text-4xl font-black text-white">
+                {today.calorieTarget.toLocaleString()}
+                <span className="text-sm font-semibold text-white/40 ml-1">kcal</span>
+              </p>
+            </div>
+          )}
+
+          {/* Macro Targets */}
+          {!!(today.proteinTarget || today.carbsTarget || today.fatTarget) && (
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              {today.proteinTarget && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-black text-blue-400">{Math.round(today.proteinTarget)}g</p>
+                  <p className="text-[10px] text-blue-400/60 font-semibold uppercase">Protein</p>
+                </div>
+              )}
+              {today.carbsTarget && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-black text-amber-400">{Math.round(today.carbsTarget)}g</p>
+                  <p className="text-[10px] text-amber-400/60 font-semibold uppercase">Carbs</p>
+                </div>
+              )}
+              {today.fatTarget && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-black text-rose-400">{Math.round(today.fatTarget)}g</p>
+                  <p className="text-[10px] text-rose-400/60 font-semibold uppercase">Fat</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Meal Plan Notes */}
+          {today.mealPlan && typeof today.mealPlan === "string" && (
+            <div className="bg-[#2A2A2A] rounded-xl p-4 mb-4">
+              <p className="text-xs text-white/40 uppercase tracking-wide mb-2">Meal Plan</p>
+              <p className="text-sm text-white/70 whitespace-pre-wrap">{String(today.mealPlan)}</p>
+            </div>
+          )}
+
+          <Link
+            href="/hub/snap-my-macros"
+            className="inline-flex items-center gap-2 text-[#E51A1A] font-semibold text-sm hover:underline"
+          >
+            Log your meals
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Coach Notes */}
+        {today.notes && !today.workout && null}
+        {today.notes && today.workout && (
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-white mb-2">Notes from Coach</h2>
+            <p className="text-white/60 text-sm whitespace-pre-wrap">{today.notes}</p>
+          </div>
+        )}
+
+        {/* Weekly Targets */}
+        {targets.length > 0 && (
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Weekly Targets</h2>
+            <div className="space-y-4">
+              {targets.map((t) => {
+                const percent = getTargetPercent(t);
+                const color = getTargetColor(percent);
+                const metricLabel =
+                  t.metric.charAt(0).toUpperCase() + t.metric.slice(1);
+                const unit =
+                  t.metric === "weight"
+                    ? "kg"
+                    : t.metric === "steps"
+                    ? "steps"
+                    : t.metric === "calories"
+                    ? "kcal"
+                    : "in";
+
+                return (
+                  <div key={t.id}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-semibold text-white">
+                        {metricLabel}
+                      </span>
+                      <span className="text-xs text-white/50">
+                        {t.currentValue !== null
+                          ? `${t.currentValue} / ${t.targetValue} ${unit}`
+                          : `Target: ${t.targetValue} ${unit}`}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${Math.min(percent, 100)}%`,
+                          backgroundColor: color,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[10px] mt-1 text-white/30 text-right">
+                      {percent}%
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

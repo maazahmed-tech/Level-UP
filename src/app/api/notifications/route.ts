@@ -37,6 +37,7 @@ export async function GET(request: Request) {
         message: n.message,
         type: n.type,
         isRead: n.isRead,
+        actionUrl: n.actionUrl,
         createdAt: n.createdAt.toISOString(),
       })),
     });

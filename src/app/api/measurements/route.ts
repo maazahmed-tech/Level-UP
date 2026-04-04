@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyAdmin } from "@/lib/notifications";
 
 export async function GET(request: Request) {
   const session = await getCurrentUser();
@@ -80,6 +81,23 @@ export async function POST(request: Request) {
       notes: notes || null,
     },
   });
+
+  // Notify admin about new measurements
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { firstName: true },
+    });
+    const firstName = dbUser?.firstName || "A user";
+    notifyAdmin(
+      `${firstName} logged new measurements`,
+      `${firstName} updated their body measurements${weightKg ? ` (${weightKg}kg)` : ""}`,
+      "admin_alert",
+      `/admin/users/${session.userId}#body`
+    );
+  } catch {
+    // Don't fail the request if notification fails
+  }
 
   return NextResponse.json({ measurement });
 }

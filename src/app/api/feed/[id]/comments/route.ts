@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyAdmin } from "@/lib/notifications";
 
 export async function GET(
   _request: Request,
@@ -78,6 +79,20 @@ export async function POST(
         },
       },
     });
+
+    // Notify admin about new comment
+    try {
+      const firstName = comment.user.firstName || "Someone";
+      const preview = content.trim().slice(0, 50);
+      notifyAdmin(
+        `${firstName} commented on a post`,
+        `${firstName} commented: "${preview}${content.trim().length > 50 ? "..." : ""}"`,
+        "admin_alert",
+        "/admin/feed"
+      );
+    } catch {
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({
       comment: {

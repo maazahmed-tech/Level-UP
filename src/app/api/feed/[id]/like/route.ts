@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyAdmin } from "@/lib/notifications";
 
 export async function POST(
   _request: Request,
@@ -33,6 +34,23 @@ export async function POST(
       await prisma.postLike.create({
         data: { postId, userId: user.userId },
       });
+
+      // Notify admin about new like (only on like, not unlike)
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { firstName: true },
+        });
+        const firstName = dbUser?.firstName || "Someone";
+        notifyAdmin(
+          `${firstName} liked your post`,
+          `${firstName} liked a post in the feed`,
+          "admin_alert",
+          "/admin/feed"
+        );
+      } catch {
+        // Don't fail the request if notification fails
+      }
     }
 
     const count = await prisma.postLike.count({ where: { postId } });

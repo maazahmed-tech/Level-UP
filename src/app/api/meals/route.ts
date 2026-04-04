@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { notifyAdmin } from "@/lib/notifications";
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,6 +75,23 @@ export async function POST(req: NextRequest) {
         loggedTime,
       },
     });
+
+    // Notify admin about logged meal
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { firstName: true },
+      });
+      const firstName = dbUser?.firstName || "A user";
+      notifyAdmin(
+        `${firstName} logged a meal`,
+        `${firstName} logged a ${mealType}: ${description}`,
+        "admin_alert",
+        `/admin/users/${user.userId}#meals`
+      );
+    } catch {
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({ meal }, { status: 201 });
   } catch (error) {

@@ -17,6 +17,23 @@ type DashboardData = {
   latestPosts: { id: number; content: string; authorName: string; likes: number; comments: number; createdAt: string }[];
 };
 
+type PlanSummary = {
+  plan: {
+    id: number;
+    name: string;
+    weekNumber: number;
+    dayOfWeek: number;
+    totalWeeks: number;
+  } | null;
+  today: {
+    workout: { title: string } | null;
+  };
+  todayProgress: {
+    workoutCompleted: boolean;
+    mealsCompleted: boolean;
+  };
+};
+
 const DASHBOARD_RANGE_OPTIONS = [
   { label: "Today", value: "today" },
   { label: "This Week", value: "week" },
@@ -41,6 +58,8 @@ const quickLinks = [
 
 export default function HubDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [planData, setPlanData] = useState<PlanSummary | null>(null);
+  const [planSaving, setPlanSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState("today");
   const { siteName } = useBranding();
@@ -55,6 +74,38 @@ export default function HubDashboard() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [range]);
+
+  useEffect(() => {
+    fetch("/api/user/plan")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error && d.plan) setPlanData(d);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function togglePlanProgress(field: "workoutCompleted" | "mealsCompleted") {
+    if (!planData || planSaving) return;
+    setPlanSaving(true);
+    const current = planData.todayProgress[field];
+    try {
+      const res = await fetch("/api/user/plan/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: !current }),
+      });
+      const result = await res.json();
+      if (!result.error) {
+        setPlanData((prev) =>
+          prev ? { ...prev, todayProgress: { ...prev.todayProgress, ...result } } : prev
+        );
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPlanSaving(false);
+    }
+  }
 
   const calorieTarget = data?.targets?.calories || 0;
   const caloriesEaten = data?.mealTotals?.calories || 0;
@@ -79,6 +130,86 @@ export default function HubDashboard() {
           Your {siteName} dashboard. Everything you need in one place.
         </p>
       </div>
+
+      {/* Today's Plan Card */}
+      {planData?.plan && (
+        <div className="mb-6 bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
+          <div className="h-1 bg-[#E51A1A]" />
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-bold text-white">{planData.plan.name}</h2>
+                <p className="text-xs text-white/40">
+                  Week {planData.plan.weekNumber} of {planData.plan.totalWeeks} &middot; Day {planData.plan.dayOfWeek}
+                </p>
+              </div>
+              <Link
+                href="/hub/my-plan"
+                className="text-xs text-[#E51A1A] font-semibold hover:underline"
+              >
+                View Full Plan
+              </Link>
+            </div>
+
+            <p className="text-sm text-white/60 mb-3">
+              {planData.today.workout
+                ? planData.today.workout.title
+                : "Rest day"}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => togglePlanProgress("workoutCompleted")}
+                disabled={planSaving}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none ${
+                  planData.todayProgress.workoutCompleted
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-[#2A2A2A] text-white/50 hover:text-white"
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded border flex items-center justify-center ${
+                    planData.todayProgress.workoutCompleted
+                      ? "bg-green-500 border-green-500"
+                      : "border-white/30"
+                  }`}
+                >
+                  {planData.todayProgress.workoutCompleted && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                Workout
+              </button>
+              <button
+                onClick={() => togglePlanProgress("mealsCompleted")}
+                disabled={planSaving}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none ${
+                  planData.todayProgress.mealsCompleted
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-[#2A2A2A] text-white/50 hover:text-white"
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded border flex items-center justify-center ${
+                    planData.todayProgress.mealsCompleted
+                      ? "bg-green-500 border-green-500"
+                      : "border-white/30"
+                  }`}
+                >
+                  {planData.todayProgress.mealsCompleted && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                Meals
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Row */}
       {!loading && data && (

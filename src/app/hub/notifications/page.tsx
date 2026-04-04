@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 interface Notification {
   id: number;
@@ -9,6 +10,7 @@ interface Notification {
   type: string;
   isRead: boolean;
   createdAt: string;
+  actionUrl?: string | null;
 }
 
 type FilterTab = "all" | "unread" | "admin_alert" | "achievement";
@@ -28,6 +30,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function HubNotificationsPage() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>("all");
@@ -62,6 +65,15 @@ export default function HubNotificationsPage() {
     } catch {
       // revert on error
       fetchNotifications();
+    }
+  }
+
+  async function handleNotificationClick(n: Notification) {
+    if (!n.isRead) {
+      await markAsRead(n.id);
+    }
+    if (n.actionUrl) {
+      router.push(n.actionUrl);
     }
   }
 
@@ -157,11 +169,11 @@ export default function HubNotificationsPage() {
           {filtered.map((n) => (
             <div
               key={n.id}
-              onClick={() => !n.isRead && markAsRead(n.id)}
-              className={`bg-[#1E1E1E] border rounded-xl px-4 py-3 transition-colors ${
+              onClick={() => handleNotificationClick(n)}
+              className={`bg-[#1E1E1E] border rounded-xl px-4 py-3 transition-colors cursor-pointer ${
                 n.isRead
-                  ? "border-[#2A2A2A]"
-                  : "border-[#E51A1A]/30 cursor-pointer hover:bg-[#1E1E1E]/80"
+                  ? "border-[#2A2A2A] hover:bg-[#252525]"
+                  : "border-[#E51A1A]/30 hover:bg-[#1E1E1E]/80"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -185,6 +197,25 @@ export default function HubNotificationsPage() {
                   <p className="text-sm text-white/60 mt-0.5 break-words">{n.message}</p>
                   <p className="text-xs text-white/30 mt-1">{timeAgo(n.createdAt)}</p>
                 </div>
+
+                {/* Arrow for actionUrl */}
+                {n.actionUrl && (
+                  <div className="flex items-center shrink-0 mt-2">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-white/30"
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </div>
+                )}
               </div>
             </div>
           ))}

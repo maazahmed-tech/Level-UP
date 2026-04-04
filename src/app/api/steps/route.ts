@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { createNotification } from "@/lib/notifications";
 
 function parseRange(rangeParam: string): number {
   switch (rangeParam) {
@@ -76,6 +77,22 @@ export async function POST(request: Request) {
       loggedDate: date,
     },
   });
+
+  // If steps >= goal, congratulate the user
+  const effectiveGoal = goal || log.goal || 10000;
+  if (steps >= effectiveGoal) {
+    try {
+      createNotification(
+        session.userId,
+        "Goal crushed!",
+        `You hit ${steps.toLocaleString()} steps today! Keep up the momentum.`,
+        "achievement",
+        "/hub/steps"
+      );
+    } catch {
+      // Don't fail the request if notification fails
+    }
+  }
 
   return NextResponse.json({ log });
 }

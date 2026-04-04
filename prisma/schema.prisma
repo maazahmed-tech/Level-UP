@@ -57,6 +57,10 @@ model User {
   bodyMeasurements     BodyMeasurement[]
   notifications        Notification[]
   reminders            UserReminder[]
+  clientPlans          ClientPlan[]
+  dailyProgress        DailyProgress[]
+  weeklyTargets        WeeklyTarget[]
+  activePlanId         Int?
 }
 
 // ─── Message ─────────────────────────────────────────────────────────
@@ -260,7 +264,9 @@ model Workout {
   isPublished   Boolean            @default(false)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
-  subcategory   WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
+  subcategory      WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
+  planTemplateDays PlanTemplateDay[]
+  clientPlanDays   ClientPlanDay[]
 
   @@index([subcategoryId, isPublished])
 }
@@ -327,7 +333,8 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String   @default("system") // meal_reminder | admin_alert | system | achievement
+  type      String   @default("system")
+  actionUrl String?  // redirect path when clicked, e.g. "/hub/my-plan"
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -437,4 +444,119 @@ model PaymentSettings {
   instructions  String?
   price         Int     @default(79)
   currency      String  @default("PKR")
+}
+
+// ─── Plan Templates ──────────────────────────────────────────────────
+
+model PlanTemplate {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?
+  type          String   @default("combined") // workout | diet | combined
+  durationWeeks Int      @default(4)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  days        PlanTemplateDay[]
+  clientPlans ClientPlan[]
+}
+
+model PlanTemplateDay {
+  id            Int     @id @default(autoincrement())
+  templateId    Int
+  dayOfWeek     Int     // 1=Mon, 7=Sun
+  weekNumber    Int     @default(1)
+  workoutId     Int?
+  workoutNotes  String?
+  mealPlan      String? // JSON
+  calorieTarget Int?
+  proteinTarget Float?
+  carbsTarget   Float?
+  fatTarget     Float?
+  notes         String?
+
+  template PlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  workout  Workout?     @relation(fields: [workoutId], references: [id])
+
+  @@index([templateId, weekNumber, dayOfWeek])
+}
+
+// ─── Client Plans (assigned to users) ────────────────────────────────
+
+model ClientPlan {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  templateId  Int?
+  name        String
+  description String?
+  type        String    @default("combined")
+  startDate   DateTime
+  endDate     DateTime?
+  status      String    @default("active") // active | paused | completed
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template PlanTemplate? @relation(fields: [templateId], references: [id])
+  days     ClientPlanDay[]
+  progress DailyProgress[]
+
+  @@index([userId, status])
+}
+
+model ClientPlanDay {
+  id            Int     @id @default(autoincrement())
+  clientPlanId  Int
+  dayOfWeek     Int
+  weekNumber    Int     @default(1)
+  workoutId     Int?
+  workoutNotes  String?
+  mealPlan      String? // JSON
+  calorieTarget Int?
+  proteinTarget Float?
+  carbsTarget   Float?
+  fatTarget     Float?
+  notes         String?
+
+  clientPlan ClientPlan @relation(fields: [clientPlanId], references: [id], onDelete: Cascade)
+  workout    Workout?   @relation(fields: [workoutId], references: [id])
+
+  @@index([clientPlanId, weekNumber, dayOfWeek])
+}
+
+// ─── Daily Progress ──────────────────────────────────────────────────
+
+model DailyProgress {
+  id               Int      @id @default(autoincrement())
+  userId           String
+  clientPlanId     Int
+  date             DateTime
+  workoutCompleted Boolean  @default(false)
+  mealsCompleted   Boolean  @default(false)
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientPlan ClientPlan @relation(fields: [clientPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientPlanId, date])
+  @@index([userId, date])
+}
+
+// ─── Weekly Targets ──────────────────────────────────────────────────
+
+model WeeklyTarget {
+  id            Int      @id @default(autoincrement())
+  userId        String
+  weekStartDate DateTime
+  metric        String   // weight | belly | waist | chest | hips | arms | steps | calories
+  targetValue   Float
+  currentValue  Float?
+  isVisible     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, weekStartDate])
 }

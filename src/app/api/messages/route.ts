@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { createNotification, notifyAdmin } from "@/lib/notifications";
 
 export async function GET() {
   try {
@@ -127,6 +128,32 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Send notifications based on sender role
+    try {
+      if (user.role !== "ADMIN") {
+        // User sent a message -> notify admin
+        const senderName = message.sender.firstName;
+        const preview = (content?.trim() || "[Image]").slice(0, 60);
+        notifyAdmin(
+          `New message from ${senderName}`,
+          preview,
+          "admin_alert",
+          "/admin/messages"
+        );
+      } else {
+        // Admin sent a message -> notify the user
+        createNotification(
+          receiverId,
+          "New message from coach",
+          (content?.trim() || "[Image]").slice(0, 100),
+          "system",
+          "/hub/messages"
+        );
+      }
+    } catch {
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({ message });
   } catch (error) {

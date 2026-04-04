@@ -11,6 +11,7 @@ const sidebarGroups = [
     label: "MAIN",
     links: [
       { href: "/hub", label: "Dashboard" },
+      { href: "/hub/my-plan", label: "My Plan" },
       { href: "/hub/feed", label: "Feed" },
     ],
   },
