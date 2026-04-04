@@ -56,6 +56,28 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   const latestWeight = user.weightLogs[0];
   const weightChange = (firstWeight && latestWeight) ? Math.round((latestWeight.weightKg - firstWeight.weightKg) * 10) / 10 : null;
 
+  // Fetch plan templates for assignment dropdown
+  const planTemplates = await prisma.planTemplate.findMany({
+    include: { _count: { select: { days: true } } },
+    orderBy: { name: "asc" },
+  });
+
+  // Fetch user's active plan with days and progress
+  const activePlan = user.activePlanId ? await prisma.clientPlan.findFirst({
+    where: { userId: id, status: "active" },
+    include: {
+      days: { include: { workout: { select: { title: true, videoUrl: true } } }, orderBy: [{ weekNumber: "asc" }, { dayOfWeek: "asc" }] },
+      progress: { orderBy: { date: "desc" } },
+    },
+  }) : null;
+
+  // Fetch weekly targets for this user
+  const weeklyTargets = await prisma.weeklyTarget.findMany({
+    where: { userId: id },
+    orderBy: { weekStartDate: "desc" },
+    take: 20,
+  });
+
   // Serialize all data
   const serialized = {
     // User profile
@@ -71,6 +93,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     lastLoginAt: user.lastLoginAt?.toISOString() || null,
     paymentScreenshot: user.paymentScreenshot,
     paymentAccountName: user.paymentAccountName,
+    activePlanId: user.activePlanId,
 
     // Quick stats
     avgDailyCals, avgDailySteps, weightChange,
@@ -116,5 +139,47 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     })),
   };
 
-  return <UserDetailClient user={serialized} />;
+  // Serialize plan templates
+  const serializedTemplates = planTemplates.map(t => ({
+    id: t.id, name: t.name, description: t.description,
+    type: t.type, durationWeeks: t.durationWeeks,
+    dayCount: t._count.days,
+  }));
+
+  // Serialize active plan
+  const serializedActivePlan = activePlan ? {
+    id: activePlan.id, name: activePlan.name, description: activePlan.description,
+    type: activePlan.type, status: activePlan.status,
+    startDate: activePlan.startDate.toISOString(),
+    endDate: activePlan.endDate?.toISOString() || null,
+    days: activePlan.days.map(d => ({
+      id: d.id, dayOfWeek: d.dayOfWeek, weekNumber: d.weekNumber,
+      workoutNotes: d.workoutNotes, mealPlan: d.mealPlan,
+      calorieTarget: d.calorieTarget, proteinTarget: d.proteinTarget,
+      carbsTarget: d.carbsTarget, fatTarget: d.fatTarget, notes: d.notes,
+      workoutTitle: d.workout?.title || null,
+      workoutVideoUrl: d.workout?.videoUrl || null,
+    })),
+    progress: activePlan.progress.map(p => ({
+      id: p.id, date: p.date.toISOString(),
+      workoutCompleted: p.workoutCompleted, mealsCompleted: p.mealsCompleted,
+      notes: p.notes,
+    })),
+  } : null;
+
+  // Serialize weekly targets
+  const serializedTargets = weeklyTargets.map(t => ({
+    id: t.id, weekStartDate: t.weekStartDate.toISOString(),
+    metric: t.metric, targetValue: t.targetValue,
+    currentValue: t.currentValue, isVisible: t.isVisible,
+  }));
+
+  return (
+    <UserDetailClient
+      user={serialized}
+      planTemplates={serializedTemplates}
+      activePlan={serializedActivePlan}
+      weeklyTargets={serializedTargets}
+    />
+  );
 }

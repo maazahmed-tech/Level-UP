@@ -16,6 +16,18 @@ export async function PUT(
     if (role !== undefined) data.role = role;
     if (plan !== undefined) data.plan = plan;
 
+    // Health profile fields
+    if (body.age !== undefined) data.age = body.age ? parseInt(body.age) : null;
+    if (body.gender !== undefined) data.gender = body.gender;
+    if (body.heightCm !== undefined) data.heightCm = body.heightCm ? parseFloat(body.heightCm) : null;
+    if (body.currentWeightKg !== undefined) data.currentWeightKg = body.currentWeightKg ? parseFloat(body.currentWeightKg) : null;
+    if (body.bodyFatPercent !== undefined) data.bodyFatPercent = body.bodyFatPercent ? parseFloat(body.bodyFatPercent) : null;
+    if (body.fitnessGoal !== undefined) data.fitnessGoal = body.fitnessGoal;
+    if (body.activityLevel !== undefined) data.activityLevel = body.activityLevel;
+    if (body.dietaryPrefs !== undefined) data.dietaryPrefs = body.dietaryPrefs;
+    if (body.targetWeightKg !== undefined) data.targetWeightKg = body.targetWeightKg ? parseFloat(body.targetWeightKg) : null;
+    if (body.activePlanId !== undefined) data.activePlanId = body.activePlanId;
+
     const user = await prisma.user.update({ where: { id }, data });
 
     return NextResponse.json({ user });

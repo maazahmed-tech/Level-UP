@@ -38,6 +38,7 @@ type UserData = {
   dietaryPrefs: string | null; targetWeightKg: number | null;
   createdAt: string; lastLoginAt: string | null;
   paymentScreenshot: string | null; paymentAccountName: string | null;
+  activePlanId: number | null;
   avgDailyCals: number; avgDailySteps: number; weightChange: number | null;
   hoursSinceLastLog: number | null; unreadMessages: number;
   macroTarget: { calories: number; protein: number; carbs: number; fat: number; goal: string } | null;
@@ -46,9 +47,38 @@ type UserData = {
   favourites: Favourite[]; messages: Message[];
 };
 
+type PlanTemplate = {
+  id: number; name: string; description: string | null;
+  type: string; durationWeeks: number; dayCount: number;
+};
+
+type PlanDay = {
+  id: number; dayOfWeek: number; weekNumber: number;
+  workoutNotes: string | null; mealPlan: string | null;
+  calorieTarget: number | null; proteinTarget: number | null;
+  carbsTarget: number | null; fatTarget: number | null; notes: string | null;
+  workoutTitle: string | null; workoutVideoUrl: string | null;
+};
+
+type PlanProgress = {
+  id: number; date: string;
+  workoutCompleted: boolean; mealsCompleted: boolean; notes: string | null;
+};
+
+type ActivePlan = {
+  id: number; name: string; description: string | null;
+  type: string; status: string; startDate: string; endDate: string | null;
+  days: PlanDay[]; progress: PlanProgress[];
+};
+
+type WeeklyTargetData = {
+  id: number; weekStartDate: string; metric: string;
+  targetValue: number; currentValue: number | null; isVisible: boolean;
+};
+
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-const TABS = ["Overview", "Meals", "Weight", "Steps", "Body", "Photos", "Messages"] as const;
+const TABS = ["Overview", "Meals", "Weight", "Steps", "Body", "Photos", "Messages", "Plans", "Targets"] as const;
 type Tab = typeof TABS[number];
 
 function fmtDate(iso: string) {
@@ -86,9 +116,24 @@ const mealTypeColor: Record<string, string> = {
   Breakfast: "#FFB800", Lunch: "#4CAF50", Dinner: "#E51A1A", Snack: "#FF6B00",
 };
 
+const DAY_NAMES = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getMonday(d?: Date) {
+  const date = d ? new Date(d) : new Date();
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  date.setDate(diff);
+  return date.toISOString().slice(0, 10);
+}
+
 /* ─── Main Component ─────────────────────────────────────────────────── */
 
-export default function UserDetailClient({ user }: { user: UserData }) {
+export default function UserDetailClient({ user, planTemplates, activePlan, weeklyTargets }: {
+  user: UserData;
+  planTemplates: PlanTemplate[];
+  activePlan: ActivePlan | null;
+  weeklyTargets: WeeklyTargetData[];
+}) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
   const [sending, setSending] = useState(false);
@@ -145,7 +190,7 @@ export default function UserDetailClient({ user }: { user: UserData }) {
   const [photoModal, setPhotoModal] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24">
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24 w-full overflow-hidden">
       {/* ── Profile Header ── */}
       <ProfileHeader user={user} />
 
@@ -181,6 +226,8 @@ export default function UserDetailClient({ user }: { user: UserData }) {
         {tab === "Body" && <BodyTab measurements={user.bodyMeasurements} userId={user.id} onDelete={(id) => deleteEntry("measurement", id)} onRefresh={() => router.refresh()} />}
         {tab === "Photos" && <PhotosTab photos={user.progressPhotos} onView={setPhotoModal} />}
         {tab === "Messages" && <MessagesTab messages={user.messages} msgText={msgText} setMsgText={setMsgText} sendMessage={sendMessage} sending={sending} />}
+        {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} onRefresh={() => router.refresh()} />}
+        {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
       </div>
 
       {/* ── Photo Modal ── */}
@@ -203,7 +250,7 @@ function ProfileHeader({ user }: { user: UserData }) {
   return (
     <div className="px-4 pt-4 pb-3 bg-[#111111]">
       {/* Back + Name */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-3">
         <Link href="/admin/users" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-[#1E1E1E] border border-[#2A2A2A]">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </Link>
@@ -211,7 +258,7 @@ function ProfileHeader({ user }: { user: UserData }) {
           <h1 className="text-lg font-bold truncate">{user.firstName} {user.lastName}</h1>
           <p className="text-xs text-white/40 truncate">{user.email}</p>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${user.planStatus === "active" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
             {user.plan}
           </span>
@@ -277,6 +324,51 @@ function OverviewTab({ user, notifTitle, notifMsg, setNotifTitle, setNotifMsg, s
   setNotifTitle: (v: string) => void; setNotifMsg: (v: string) => void;
   sendNotification: () => void; sending: boolean;
 }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [healthForm, setHealthForm] = useState({
+    age: user.age?.toString() || "",
+    gender: user.gender || "",
+    heightCm: user.heightCm?.toString() || "",
+    currentWeightKg: user.currentWeightKg?.toString() || "",
+    bodyFatPercent: user.bodyFatPercent?.toString() || "",
+    fitnessGoal: user.fitnessGoal || "",
+    activityLevel: user.activityLevel || "",
+    targetWeightKg: user.targetWeightKg?.toString() || "",
+    dietaryPrefs: user.dietaryPrefs || "",
+  });
+
+  const saveHealth = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          age: healthForm.age ? parseInt(healthForm.age) : null,
+          gender: healthForm.gender || null,
+          heightCm: healthForm.heightCm ? parseFloat(healthForm.heightCm) : null,
+          currentWeightKg: healthForm.currentWeightKg ? parseFloat(healthForm.currentWeightKg) : null,
+          bodyFatPercent: healthForm.bodyFatPercent ? parseFloat(healthForm.bodyFatPercent) : null,
+          fitnessGoal: healthForm.fitnessGoal || null,
+          activityLevel: healthForm.activityLevel || null,
+          targetWeightKg: healthForm.targetWeightKg ? parseFloat(healthForm.targetWeightKg) : null,
+          dietaryPrefs: healthForm.dietaryPrefs || null,
+        }),
+      });
+      if (res.ok) {
+        setEditing(false);
+        router.refresh();
+      } else {
+        alert("Failed to save");
+      }
+    } catch { alert("Failed to save health profile"); }
+    setSaving(false);
+  };
+
+  const inputCls = "w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 min-h-[44px]";
+
   return (
     <div className="space-y-4">
       {/* Macro Targets */}
@@ -292,19 +384,108 @@ function OverviewTab({ user, notifTitle, notifMsg, setNotifTitle, setNotifMsg, s
         </Card>
       )}
 
-      {/* Health Profile */}
+      {/* Health Profile - Editable */}
       <Card title="Health Profile">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <InfoRow label="Age" value={user.age ? `${user.age}` : "--"} />
-          <InfoRow label="Gender" value={user.gender || "--"} />
-          <InfoRow label="Height" value={user.heightCm ? `${user.heightCm} cm` : "--"} />
-          <InfoRow label="Weight" value={user.currentWeightKg ? `${user.currentWeightKg} kg` : "--"} />
-          <InfoRow label="Body Fat" value={user.bodyFatPercent ? `${user.bodyFatPercent}%` : "--"} />
-          <InfoRow label="Target Wt" value={user.targetWeightKg ? `${user.targetWeightKg} kg` : "--"} />
-          <InfoRow label="Goal" value={user.fitnessGoal?.replace(/_/g, " ") || "--"} />
-          <InfoRow label="Activity" value={user.activityLevel?.replace(/_/g, " ") || "--"} />
-        </div>
-        {user.dietaryPrefs && <p className="text-xs text-white/40 mt-2">Dietary: {user.dietaryPrefs}</p>}
+        {!editing ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <InfoRow label="Age" value={user.age ? `${user.age}` : "--"} />
+              <InfoRow label="Gender" value={user.gender || "--"} />
+              <InfoRow label="Height" value={user.heightCm ? `${user.heightCm} cm` : "--"} />
+              <InfoRow label="Weight" value={user.currentWeightKg ? `${user.currentWeightKg} kg` : "--"} />
+              <InfoRow label="Body Fat" value={user.bodyFatPercent ? `${user.bodyFatPercent}%` : "--"} />
+              <InfoRow label="Target Wt" value={user.targetWeightKg ? `${user.targetWeightKg} kg` : "--"} />
+              <InfoRow label="Goal" value={user.fitnessGoal?.replace(/_/g, " ") || "--"} />
+              <InfoRow label="Activity" value={user.activityLevel?.replace(/_/g, " ") || "--"} />
+            </div>
+            {user.dietaryPrefs && <p className="text-xs text-white/40 mt-2">Dietary: {user.dietaryPrefs}</p>}
+            <button onClick={() => setEditing(true)}
+              className="mt-3 w-full min-h-[44px] bg-[#2A2A2A] hover:bg-[#333] text-white/70 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+              Edit Health Profile
+            </button>
+          </>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Age</label>
+                <input type="number" value={healthForm.age} onChange={e => setHealthForm({ ...healthForm, age: e.target.value })}
+                  placeholder="Age" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Gender</label>
+                <div className="flex gap-2">
+                  {["male", "female"].map(g => (
+                    <button key={g} onClick={() => setHealthForm({ ...healthForm, gender: g })}
+                      className={`flex-1 min-h-[44px] rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                        healthForm.gender === g ? "bg-[#E51A1A] text-white" : "bg-[#0A0A0A] border border-[#2A2A2A] text-white/50"
+                      }`}>
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Height (cm)</label>
+                <input type="number" step="0.1" value={healthForm.heightCm} onChange={e => setHealthForm({ ...healthForm, heightCm: e.target.value })}
+                  placeholder="Height cm" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Weight (kg)</label>
+                <input type="number" step="0.1" value={healthForm.currentWeightKg} onChange={e => setHealthForm({ ...healthForm, currentWeightKg: e.target.value })}
+                  placeholder="Weight kg" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Body Fat %</label>
+                <input type="number" step="0.1" value={healthForm.bodyFatPercent} onChange={e => setHealthForm({ ...healthForm, bodyFatPercent: e.target.value })}
+                  placeholder="Body fat %" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Target Weight (kg)</label>
+                <input type="number" step="0.1" value={healthForm.targetWeightKg} onChange={e => setHealthForm({ ...healthForm, targetWeightKg: e.target.value })}
+                  placeholder="Target weight" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Fitness Goal</label>
+                <select value={healthForm.fitnessGoal} onChange={e => setHealthForm({ ...healthForm, fitnessGoal: e.target.value })} className={inputCls}>
+                  <option value="">Select goal</option>
+                  <option value="fat_loss">Fat Loss</option>
+                  <option value="weight_loss">Weight Loss</option>
+                  <option value="muscle_gain">Muscle Gain</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="recomp">Body Recomp</option>
+                  <option value="general_fitness">General Fitness</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Activity Level</label>
+                <select value={healthForm.activityLevel} onChange={e => setHealthForm({ ...healthForm, activityLevel: e.target.value })} className={inputCls}>
+                  <option value="">Select level</option>
+                  <option value="sedentary">Sedentary</option>
+                  <option value="lightly_active">Lightly Active</option>
+                  <option value="moderately_active">Moderately Active</option>
+                  <option value="very_active">Very Active</option>
+                  <option value="extremely_active">Extremely Active</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Dietary Preferences</label>
+              <input type="text" value={healthForm.dietaryPrefs} onChange={e => setHealthForm({ ...healthForm, dietaryPrefs: e.target.value })}
+                placeholder="e.g. halal, vegetarian, keto" className={inputCls} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(false)}
+                className="flex-1 min-h-[44px] bg-[#2A2A2A] text-white/60 text-sm rounded-lg cursor-pointer hover:bg-[#333]">
+                Cancel
+              </button>
+              <button onClick={saveHealth} disabled={saving}
+                className="flex-1 min-h-[44px] bg-[#E51A1A] hover:bg-[#c41717] disabled:opacity-40 text-white text-sm font-semibold rounded-lg cursor-pointer">
+                {saving ? "Saving..." : "Save Health Profile"}
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Favourites */}
@@ -343,6 +524,401 @@ function OverviewTab({ user, notifTitle, notifMsg, setNotifTitle, setNotifMsg, s
           {user.paymentAccountName && <p className="text-sm text-white/60 mb-2">Account: {user.paymentAccountName}</p>}
           <img src={user.paymentScreenshot} alt="Payment" className="rounded-lg max-h-60 object-contain w-full" />
         </Card>
+      )}
+    </div>
+  );
+}
+
+/* ─── Plans Tab ──────────────────────────────────────────────────────── */
+
+function PlansTab({ userId, activePlan, planTemplates, onRefresh }: {
+  userId: string; activePlan: ActivePlan | null; planTemplates: PlanTemplate[]; onRefresh: () => void;
+}) {
+  if (activePlan) {
+    return <ActivePlanView userId={userId} plan={activePlan} onRefresh={onRefresh} />;
+  }
+  return <AssignPlanForm userId={userId} templates={planTemplates} onRefresh={onRefresh} />;
+}
+
+function ActivePlanView({ userId, plan, onRefresh }: {
+  userId: string; plan: ActivePlan; onRefresh: () => void;
+}) {
+  const [updating, setUpdating] = useState(false);
+
+  const maxWeek = Math.max(...plan.days.map(d => d.weekNumber), 1);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Build a set of completed dates
+  const completedDates = new Set(
+    plan.progress
+      .filter(p => p.workoutCompleted || p.mealsCompleted)
+      .map(p => p.date.slice(0, 10))
+  );
+
+  // Compute which calendar date each plan day corresponds to
+  const planStart = new Date(plan.startDate);
+  function getDayDate(weekNum: number, dayOfWeek: number) {
+    const d = new Date(planStart);
+    d.setDate(d.getDate() + (weekNum - 1) * 7 + (dayOfWeek - 1));
+    return d.toISOString().slice(0, 10);
+  }
+
+  const totalDays = plan.days.length;
+  const completedCount = plan.days.filter(d => completedDates.has(getDayDate(d.weekNumber, d.dayOfWeek))).length;
+  const pastDays = plan.days.filter(d => getDayDate(d.weekNumber, d.dayOfWeek) < today).length;
+  const missedCount = pastDays - completedCount;
+  const adherencePct = pastDays > 0 ? Math.round((completedCount / pastDays) * 100) : 0;
+
+  const updateStatus = async (status: string) => {
+    if (!confirm(`${status === "paused" ? "Pause" : "Complete"} this plan?`)) return;
+    setUpdating(true);
+    try {
+      await fetch(`/api/admin/users/${userId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      onRefresh();
+    } catch { alert("Failed to update plan"); }
+    setUpdating(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Plan Header */}
+      <Card title="Active Plan">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div>
+            <h4 className="text-base font-bold">{plan.name}</h4>
+            {plan.description && <p className="text-xs text-white/40 mt-0.5">{plan.description}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 capitalize">{plan.type}</span>
+            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-500/20 text-green-400 capitalize">{plan.status}</span>
+          </div>
+        </div>
+        <p className="text-xs text-white/40">Started {fmtDate(plan.startDate)}</p>
+      </Card>
+
+      {/* Adherence Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatCard label="Completed" value={`${completedCount}/${pastDays}`} color={adherencePct >= 80 ? "text-green-400" : adherencePct >= 50 ? "text-yellow-400" : "text-red-400"} />
+        <StatCard label="Missed" value={`${missedCount}`} color={missedCount === 0 ? "text-green-400" : "text-orange-400"} />
+        <StatCard label="Adherence" value={`${adherencePct}%`} color={adherencePct >= 80 ? "text-green-400" : adherencePct >= 50 ? "text-yellow-400" : "text-red-400"} />
+      </div>
+
+      {/* Week x Day Grid */}
+      {Array.from({ length: maxWeek }, (_, wi) => {
+        const weekNum = wi + 1;
+        const weekDays = plan.days.filter(d => d.weekNumber === weekNum);
+        return (
+          <Card key={weekNum} title={`Week ${weekNum}`}>
+            <div className="grid grid-cols-7 gap-1">
+              {[1, 2, 3, 4, 5, 6, 7].map(dow => {
+                const day = weekDays.find(d => d.dayOfWeek === dow);
+                const dayDate = getDayDate(weekNum, dow);
+                const isCompleted = completedDates.has(dayDate);
+                const isPast = dayDate < today;
+                const isToday = dayDate === today;
+                const isMissed = isPast && !isCompleted && !!day;
+
+                return (
+                  <div key={dow} className={`rounded-lg p-1.5 text-center text-[10px] min-h-[52px] flex flex-col items-center justify-center border ${
+                    isToday ? "border-[#E51A1A] bg-[#E51A1A]/10" :
+                    isCompleted ? "border-green-500/30 bg-green-500/10" :
+                    isMissed ? "border-orange-500/30 bg-orange-500/10" :
+                    "border-[#2A2A2A] bg-[#0A0A0A]"
+                  } ${!day ? "opacity-30" : ""}`}>
+                    <span className="text-white/40 font-medium">{DAY_NAMES[dow]}</span>
+                    {day && (
+                      <>
+                        {isCompleted && <span className="text-green-400 text-sm mt-0.5">&#10003;</span>}
+                        {isMissed && <span className="text-orange-400 text-sm mt-0.5">&#10007;</span>}
+                        {!isPast && !isToday && <span className="text-white/20 text-sm mt-0.5">-</span>}
+                        {day.workoutTitle && <span className="text-white/50 truncate w-full">{day.workoutTitle}</span>}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })}
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <button onClick={() => updateStatus("paused")} disabled={updating}
+          className="flex-1 min-h-[44px] bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 text-sm font-semibold rounded-lg cursor-pointer disabled:opacity-40">
+          {updating ? "..." : "Pause Plan"}
+        </button>
+        <button onClick={() => updateStatus("completed")} disabled={updating}
+          className="flex-1 min-h-[44px] bg-green-500/20 text-green-400 hover:bg-green-500/30 text-sm font-semibold rounded-lg cursor-pointer disabled:opacity-40">
+          {updating ? "..." : "Complete Plan"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AssignPlanForm({ userId, templates, onRefresh }: {
+  userId: string; templates: PlanTemplate[]; onRefresh: () => void;
+}) {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState(getMonday());
+  const [assigning, setAssigning] = useState(false);
+
+  const selected = templates.find(t => t.id === selectedId);
+
+  const assignPlan = async () => {
+    if (!selected) return;
+    setAssigning(true);
+    try {
+      const res = await fetch("/api/admin/plans/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          templateId: selected.id,
+          name: selected.name,
+          description: selected.description,
+          type: selected.type,
+          startDate,
+        }),
+      });
+      if (res.ok) {
+        alert("Plan assigned successfully!");
+        onRefresh();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to assign plan");
+      }
+    } catch { alert("Failed to assign plan"); }
+    setAssigning(false);
+  };
+
+  const inputCls = "w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2.5 text-sm text-white min-h-[44px]";
+
+  return (
+    <div className="space-y-4">
+      <Card title="Assign Plan">
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Plan Template</label>
+            <select value={selectedId ?? ""} onChange={e => setSelectedId(e.target.value ? parseInt(e.target.value) : null)} className={inputCls}>
+              <option value="">Select a plan template...</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name} -- {t.durationWeeks}w, {t.dayCount} days ({t.type})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Start Date</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+          </div>
+
+          {/* Template Preview */}
+          {selected && (
+            <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3">
+              <h4 className="text-sm font-semibold mb-1">{selected.name}</h4>
+              {selected.description && <p className="text-xs text-white/40 mb-2">{selected.description}</p>}
+              <div className="flex gap-3 text-xs text-white/50">
+                <span>Duration: {selected.durationWeeks} weeks</span>
+                <span>Days: {selected.dayCount}</span>
+                <span className="capitalize">Type: {selected.type}</span>
+              </div>
+            </div>
+          )}
+
+          <button onClick={assignPlan} disabled={assigning || !selected}
+            className="w-full min-h-[44px] bg-[#E51A1A] hover:bg-[#c41717] disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer">
+            {assigning ? "Assigning..." : "Assign Plan"}
+          </button>
+        </div>
+      </Card>
+
+      {templates.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-white/30 text-sm mb-2">No plan templates available.</p>
+          <Link href="/admin/plans" className="text-[#E51A1A] text-sm hover:underline">
+            Create a plan template
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Targets Tab ────────────────────────────────────────────────────── */
+
+const TARGET_METRICS = [
+  { value: "weight", label: "Weight (kg)" },
+  { value: "belly", label: "Belly (in)" },
+  { value: "waist", label: "Waist (in)" },
+  { value: "chest", label: "Chest (in)" },
+  { value: "hips", label: "Hips (in)" },
+  { value: "arms", label: "Arms (in)" },
+  { value: "steps", label: "Steps" },
+  { value: "calories", label: "Calories" },
+];
+
+type TargetRow = { metric: string; targetValue: string; isVisible: boolean };
+
+function TargetsTab({ userId, weeklyTargets, onRefresh }: {
+  userId: string; weeklyTargets: WeeklyTargetData[]; onRefresh: () => void;
+}) {
+  const [weekStart, setWeekStart] = useState(getMonday());
+  const [rows, setRows] = useState<TargetRow[]>([{ metric: "weight", targetValue: "", isVisible: true }]);
+  const [saving, setSaving] = useState(false);
+
+  const addRow = () => {
+    const usedMetrics = new Set(rows.map(r => r.metric));
+    const nextMetric = TARGET_METRICS.find(m => !usedMetrics.has(m.value))?.value || "weight";
+    setRows([...rows, { metric: nextMetric, targetValue: "", isVisible: true }]);
+  };
+
+  const removeRow = (i: number) => {
+    if (rows.length <= 1) return;
+    setRows(rows.filter((_, idx) => idx !== i));
+  };
+
+  const updateRow = (i: number, field: keyof TargetRow, value: string | boolean) => {
+    const next = [...rows];
+    (next[i] as Record<string, string | boolean>)[field] = value;
+    setRows(next);
+  };
+
+  const saveTargets = async () => {
+    const valid = rows.filter(r => r.targetValue);
+    if (valid.length === 0) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/targets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekStartDate: weekStart,
+          targets: valid.map(r => ({
+            metric: r.metric,
+            targetValue: parseFloat(r.targetValue),
+            isVisible: r.isVisible,
+          })),
+        }),
+      });
+      if (res.ok) {
+        alert("Targets saved!");
+        setRows([{ metric: "weight", targetValue: "", isVisible: true }]);
+        onRefresh();
+      } else {
+        alert("Failed to save targets");
+      }
+    } catch { alert("Failed to save targets"); }
+    setSaving(false);
+  };
+
+  const inputCls = "w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2 text-sm text-white min-h-[44px]";
+
+  return (
+    <div className="space-y-4">
+      {/* Set Weekly Targets Form */}
+      <Card title="Set Weekly Targets">
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Week Start Date</label>
+            <input type="date" value={weekStart} onChange={e => setWeekStart(e.target.value)} className={inputCls} />
+          </div>
+
+          {rows.map((row, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <select value={row.metric} onChange={e => updateRow(i, "metric", e.target.value)}
+                className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-2 py-2 text-sm text-white min-h-[44px]">
+                {TARGET_METRICS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+              <input type="number" step="any" value={row.targetValue}
+                onChange={e => updateRow(i, "targetValue", e.target.value)}
+                placeholder="Target"
+                className="w-24 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-2 py-2 text-sm text-white placeholder-white/30 min-h-[44px]" />
+              <button onClick={() => updateRow(i, "isVisible", !row.isVisible)}
+                className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border cursor-pointer ${
+                  row.isVisible ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-[#2A2A2A] bg-[#0A0A0A] text-white/30"
+                }`} title={row.isVisible ? "Visible to user" : "Hidden from user"}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {row.isVisible ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18" />
+                  )}
+                </svg>
+              </button>
+              {rows.length > 1 && (
+                <button onClick={() => removeRow(i)}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center text-red-400/60 hover:text-red-400 cursor-pointer">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button onClick={addRow}
+            className="w-full min-h-[44px] border border-dashed border-[#2A2A2A] text-white/40 hover:text-white/60 text-sm rounded-lg cursor-pointer hover:border-[#444] transition-colors">
+            + Add Target
+          </button>
+
+          <button onClick={saveTargets} disabled={saving || rows.every(r => !r.targetValue)}
+            className="w-full min-h-[44px] bg-[#E51A1A] hover:bg-[#c41717] disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer">
+            {saving ? "Saving..." : "Save Targets"}
+          </button>
+        </div>
+      </Card>
+
+      {/* Existing Targets Table */}
+      {weeklyTargets.length > 0 && (
+        <Card title="Existing Targets">
+          <div className="space-y-2">
+            {weeklyTargets.map(t => {
+              const progressPct = t.currentValue !== null && t.targetValue > 0
+                ? Math.round((t.currentValue / t.targetValue) * 100)
+                : null;
+              const colorClass = progressPct !== null
+                ? (progressPct >= 90 ? "text-green-400" : progressPct >= 50 ? "text-orange-400" : "text-red-400")
+                : "text-white/30";
+
+              return (
+                <div key={t.id} className="flex items-center justify-between bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2.5 min-h-[48px]">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium capitalize">{t.metric}</span>
+                      {!t.isVisible && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/30">Hidden</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-white/40">
+                      Week of {fmtDateShort(t.weekStartDate)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <p className="text-sm font-semibold">
+                      {t.currentValue !== null ? t.currentValue : "--"} / {t.targetValue}
+                    </p>
+                    {progressPct !== null && (
+                      <p className={`text-xs font-bold ${colorClass}`}>{progressPct}%</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {weeklyTargets.length === 0 && (
+        <EmptyState text="No weekly targets set yet" />
       )}
     </div>
   );
@@ -999,7 +1575,7 @@ function MessagesTab({ messages, msgText, setMsgText, sendMessage, sending }: {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
+    <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 sm:p-6">
       <h3 className="text-sm font-semibold text-white/70 mb-3">{title}</h3>
       {children}
     </div>

@@ -271,7 +271,19 @@ export default function ProgressPage() {
     try {
       const res = await fetch("/api/measurements");
       const data = await res.json();
-      if (data.measurements) setMeasurements(data.measurements);
+      if (data.measurements) {
+        setMeasurements(data.measurements);
+        // Pre-fill form from most recent entry
+        if (data.measurements.length > 0) {
+          const latest = data.measurements[0]; // already sorted desc
+          if (latest.weightKg) setLogWeight(String(latest.weightKg));
+          if (latest.bellyInches) setLogBelly(String(latest.bellyInches));
+          if (latest.waistInches) setLogWaist(String(latest.waistInches));
+          if (latest.chestInches) setLogChest(String(latest.chestInches));
+          if (latest.hipsInches) setLogHips(String(latest.hipsInches));
+          if (latest.armsInches) setLogArms(String(latest.armsInches));
+        }
+      }
     } catch {
       // ignore
     } finally {
