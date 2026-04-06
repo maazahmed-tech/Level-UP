@@ -165,37 +165,40 @@ export default function MyPlanPage() {
     }
   }
 
-  // Navigate to a specific day in the selected week
-  function navigateToDay(dayOfWeek: number) {
-    if (!data?.plan) return;
-    // Calculate the date for this day in the currently viewed week
-    const startDate = new Date(data.plan.startDate);
-    const viewingWeek = data.plan.weekNumber;
-    // Days offset from plan start: (weekNumber - 1) * 7 + (dayOfWeek - 1)
-    const daysFromStart = (viewingWeek - 1) * 7 + (dayOfWeek - 1);
-    // Adjust for the weekday of startDate
-    const startDow = startDate.getDay() === 0 ? 7 : startDate.getDay();
-    const mondayOfStartWeek = new Date(startDate);
-    mondayOfStartWeek.setDate(mondayOfStartWeek.getDate() - (startDow - 1));
-    const targetDate = new Date(mondayOfStartWeek);
-    targetDate.setDate(targetDate.getDate() + (viewingWeek - 1) * 7 + (dayOfWeek - 1));
-    const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}-${String(targetDate.getDate()).padStart(2, "0")}`;
-    setSelectedDate(dateStr);
+  // Helper: format Date to YYYY-MM-DD
+  function toDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
+  // Get the Monday of the week containing the currently selected/viewed date
+  function getMondayOfViewedWeek(): Date {
+    if (!data?.plan) return new Date();
+    const current = new Date(data.selectedDate + "T00:00:00");
+    const dow = current.getDay() === 0 ? 7 : current.getDay(); // 1=Mon, 7=Sun
+    const monday = new Date(current);
+    monday.setDate(monday.getDate() - (dow - 1));
+    return monday;
+  }
+
+  // Navigate to a specific day (1=Mon, 7=Sun) in the currently viewed week
+  function navigateToDay(dayOfWeek: number) {
+    if (!data?.plan) return;
+    const monday = getMondayOfViewedWeek();
+    const target = new Date(monday);
+    target.setDate(target.getDate() + (dayOfWeek - 1));
+    setSelectedDate(toDateStr(target));
+  }
+
+  // Move to the same weekday in the previous/next week
   function changeWeek(delta: number) {
     if (!data?.plan) return;
     const newWeek = data.plan.weekNumber + delta;
     if (newWeek < 1 || newWeek > data.plan.totalWeeks) return;
-    // Navigate to Monday of the new week
-    const startDate = new Date(data.plan.startDate);
-    const startDow = startDate.getDay() === 0 ? 7 : startDate.getDay();
-    const mondayOfStartWeek = new Date(startDate);
-    mondayOfStartWeek.setDate(mondayOfStartWeek.getDate() - (startDow - 1));
-    const targetMonday = new Date(mondayOfStartWeek);
-    targetMonday.setDate(targetMonday.getDate() + (newWeek - 1) * 7);
-    const dateStr = `${targetMonday.getFullYear()}-${String(targetMonday.getMonth() + 1).padStart(2, "0")}-${String(targetMonday.getDate()).padStart(2, "0")}`;
-    setSelectedDate(dateStr);
+    // Jump by 7 days from current Monday
+    const monday = getMondayOfViewedWeek();
+    const targetMonday = new Date(monday);
+    targetMonday.setDate(targetMonday.getDate() + delta * 7);
+    setSelectedDate(toDateStr(targetMonday));
   }
 
   function goToToday() {
@@ -204,23 +207,25 @@ export default function MyPlanPage() {
 
   function getDayStatus(dayIndex: number) {
     if (!data?.plan) return "future";
-    const dayNum = dayIndex + 1;
-    const todayWeek = data.plan.todayWeekNumber;
-    const todayDow = data.plan.todayDayOfWeek;
-    const viewingWeek = data.plan.weekNumber;
+    const dayNum = dayIndex + 1; // 1=Mon, 7=Sun
 
-    // Calculate the date for this dot
-    const startDate = new Date(data.plan.startDate);
-    const startDow = startDate.getDay() === 0 ? 7 : startDate.getDay();
-    const mondayOfStartWeek = new Date(startDate);
-    mondayOfStartWeek.setDate(mondayOfStartWeek.getDate() - (startDow - 1));
-    const dotDate = new Date(mondayOfStartWeek);
-    dotDate.setDate(dotDate.getDate() + (viewingWeek - 1) * 7 + dayIndex);
-    const dotStr = dotDate.toISOString().split("T")[0];
+    // Get the Monday of the currently viewed week from selectedDate
+    const selectedDt = new Date(data.selectedDate + "T00:00:00");
+    const selDow = selectedDt.getDay() === 0 ? 7 : selectedDt.getDay();
+    const monday = new Date(selectedDt);
+    monday.setDate(monday.getDate() - (selDow - 1));
 
-    const isActualToday = viewingWeek === todayWeek && dayNum === todayDow;
+    // Calculate the actual date for this dot
+    const dotDate = new Date(monday);
+    dotDate.setDate(dotDate.getDate() + dayIndex);
+    const dotStr = toDateStr(dotDate);
+
+    // Today's actual date
+    const todayStr = getTodayStr();
+
+    const isActualToday = dotStr === todayStr;
     const isSelected = data.selectedDate === dotStr;
-    const isFutureDay = viewingWeek > todayWeek || (viewingWeek === todayWeek && dayNum > todayDow);
+    const isFutureDay = dotStr > todayStr;
 
     if (isFutureDay) return isSelected ? "selected-future" : "future";
     if (isActualToday) return isSelected ? "today-selected" : "today";
