@@ -3,16 +3,8 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-
-function extractYouTubeId(url: string): string | null {
-  const longMatch = url.match(
-    /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
-  );
-  if (longMatch) return longMatch[1];
-  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (shortMatch) return shortMatch[1];
-  return null;
-}
+import VideoEmbed from "@/components/ui/VideoEmbed";
+import VideoThumbnail from "@/components/ui/VideoThumbnail";
 
 const difficultyColor: Record<string, string> = {
   Beginner: "bg-green-500/20 text-green-400",
@@ -43,7 +35,7 @@ export default async function WorkoutDetailPage({
   }
 
   const instructions: string[] = JSON.parse(workout.instructions || "[]");
-  const videoId = extractYouTubeId(workout.videoUrl);
+  const hasVideo = !!workout.videoUrl;
 
   // Related workouts from same subcategory
   const related = await prisma.workout.findMany({
@@ -112,29 +104,17 @@ export default async function WorkoutDetailPage({
         </span>
       </div>
 
-      {/* YouTube Embed */}
-      {videoId ? (
+      {/* Video Embed */}
+      {hasVideo ? (
         <div className="mb-8">
-          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1E1E1E]">
-            <iframe
-              src={`https://www.youtube.com/embed/${videoId}`}
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
-            />
-          </div>
+          <VideoEmbed url={workout.videoUrl} />
         </div>
       ) : (
         <div className="relative aspect-video bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center mb-8 overflow-hidden">
-          <svg
-            className="w-16 h-16 text-white/20 mb-3"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-16 h-16 text-white/20 mb-3" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
           </svg>
-          <span className="text-white/40 text-sm font-semibold">
-            Video Unavailable
-          </span>
+          <span className="text-white/40 text-sm font-semibold">Video Unavailable</span>
         </div>
       )}
 
@@ -184,36 +164,13 @@ export default async function WorkoutDetailPage({
                   category: { name: string };
                 };
               }) => {
-                const vid = extractYouTubeId(w.videoUrl);
-                const thumb = vid
-                  ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg`
-                  : null;
-
                 return (
                   <Link
                     key={w.id}
                     href={`/hub/workouts/${w.slug}`}
                     className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
                   >
-                    <div className="relative h-[160px] bg-[#2A2A2A] overflow-hidden">
-                      {thumb ? (
-                        <img
-                          src={thumb}
-                          alt={w.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg
-                            className="w-10 h-10 text-white/20"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
+                    <VideoThumbnail url={w.videoUrl} height="h-[160px]" />
                     <div className="p-4">
                       <h3 className="font-bold text-white text-sm mb-2 group-hover:text-[#E51A1A] transition-colors line-clamp-2">
                         {w.title}

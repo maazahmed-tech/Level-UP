@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-function extractYouTubeId(url: string): string {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]+)/);
-  return match ? match[1] : "";
-}
+import VideoEmbed from "@/components/ui/VideoEmbed";
+import { parseVideoUrl } from "@/lib/video";
 
 interface PostUser {
   firstName: string;
@@ -251,7 +249,7 @@ export default function AdminFeedPage() {
             className="px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-sm text-white focus:outline-none focus:border-[#E51A1A] transition-colors"
           >
             <option value="none">None</option>
-            <option value="youtube">YouTube Video</option>
+            <option value="youtube">Video (YouTube, Instagram, TikTok, FB)</option>
             <option value="image">Image Upload</option>
           </select>
         </div>
@@ -261,7 +259,7 @@ export default function AdminFeedPage() {
             type="url"
             value={youtubeUrl}
             onChange={(e) => setYoutubeUrl(e.target.value)}
-            placeholder="https://youtube.com/watch?v=..."
+            placeholder="Paste any video URL (YouTube, Instagram Reel, TikTok, Facebook)"
             className="w-full px-4 py-3 bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#E51A1A] transition-colors"
           />
         )}
@@ -316,19 +314,14 @@ export default function AdminFeedPage() {
                       {post.content}
                     </p>
 
-                    {/* YouTube embed */}
-                    {post.mediaType === "youtube" && post.mediaUrl && (
-                      <div className="mt-3 rounded-xl overflow-hidden">
-                        <iframe
-                          src={`https://www.youtube.com/embed/${extractYouTubeId(post.mediaUrl)}`}
-                          className="w-full aspect-video"
-                          allowFullScreen
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        />
+                    {/* Video embed (YouTube, Instagram, TikTok, Facebook) */}
+                    {post.mediaUrl && parseVideoUrl(post.mediaUrl) && (
+                      <div className="mt-3">
+                        <VideoEmbed url={post.mediaUrl} />
                       </div>
                     )}
                     {/* Image */}
-                    {post.mediaType === "image" && post.mediaUrl && (
+                    {post.mediaType === "image" && post.mediaUrl && !parseVideoUrl(post.mediaUrl) && (
                       <img src={post.mediaUrl} alt="Post media" className="mt-3 max-w-full rounded-xl max-h-[400px] object-cover" />
                     )}
 

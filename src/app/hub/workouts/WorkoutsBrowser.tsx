@@ -36,15 +36,7 @@ interface Props {
   categories: Category[];
 }
 
-function extractYouTubeId(url: string): string | null {
-  const longMatch = url.match(
-    /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
-  );
-  if (longMatch) return longMatch[1];
-  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (shortMatch) return shortMatch[1];
-  return null;
-}
+import VideoThumbnail from "@/components/ui/VideoThumbnail";
 
 const difficultyColor: Record<string, string> = {
   Beginner: "bg-green-500/20 text-green-400",
@@ -264,47 +256,13 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
           {filtered.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filtered.map((workout) => {
-                const videoId = extractYouTubeId(workout.videoUrl);
-                const thumbnail = videoId
-                  ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
-                  : null;
-
                 return (
                   <Link
                     key={workout.id}
                     href={`/hub/workouts/${workout.slug}`}
                     className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
                   >
-                    {/* Thumbnail */}
-                    <div className="relative h-[180px] bg-[#2A2A2A] flex items-center justify-center overflow-hidden">
-                      {thumbnail ? (
-                        <img
-                          src={thumbnail}
-                          alt={workout.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <svg
-                          className="w-12 h-12 text-white/20"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      )}
-                      {/* Play overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                        <div className="w-12 h-12 rounded-full bg-[#E51A1A] flex items-center justify-center">
-                          <svg
-                            className="w-5 h-5 text-white ml-0.5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
+                    <VideoThumbnail url={workout.videoUrl} height="h-[180px]" />
 
                     {/* Card body */}
                     <div className="p-4">

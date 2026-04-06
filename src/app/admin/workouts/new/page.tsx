@@ -211,7 +211,7 @@ export default function NewWorkoutPage() {
             value={videoUrl}
             onChange={(e) => setVideoUrl(e.target.value)}
             className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl py-3 px-4 text-white focus:border-[#E51A1A] focus:outline-none"
-            placeholder="https://www.youtube.com/watch?v=..."
+            placeholder="Paste video URL (YouTube, Instagram, TikTok, Facebook)"
           />
         </div>
 

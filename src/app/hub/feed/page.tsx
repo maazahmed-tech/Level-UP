@@ -33,19 +33,8 @@ interface Post {
   likedByMe: boolean;
 }
 
-function extractYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
-    /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-    /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-    /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
+import VideoEmbed from "@/components/ui/VideoEmbed";
+import { parseVideoUrl } from "@/lib/video";
 
 function timeAgo(dateStr: string): string {
   const now = new Date();
@@ -178,10 +167,7 @@ export default function HubFeedPage() {
       ) : (
         <div className="space-y-6">
           {posts.map((post) => {
-            const videoId =
-              post.mediaType === "youtube" && post.mediaUrl
-                ? extractYouTubeId(post.mediaUrl)
-                : null;
+            const videoInfo = post.mediaUrl ? parseVideoUrl(post.mediaUrl) : null;
             const comments = commentsData[post.id] || [];
             const isExpanded = expandedComments.has(post.id);
 
@@ -220,40 +206,20 @@ export default function HubFeedPage() {
                   </p>
                 </div>
 
-                {/* Media */}
-                {post.mediaType === "youtube" && videoId && (
+                {/* Media — auto-detects platform */}
+                {post.mediaUrl && videoInfo && (
                   <div className="px-5 pb-4">
-                    <div className="aspect-video rounded-xl overflow-hidden">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${videoId}`}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
+                    <VideoEmbed url={post.mediaUrl} />
                   </div>
                 )}
 
-                {post.mediaType === "image" && post.mediaUrl && (
+                {post.mediaType === "image" && post.mediaUrl && !videoInfo && (
                   <div className="px-5 pb-4">
                     <img
                       src={post.mediaUrl}
                       alt="Post media"
                       className="w-full rounded-xl object-cover max-h-[500px]"
                     />
-                  </div>
-                )}
-
-                {post.mediaType === "reel" && post.mediaUrl && (
-                  <div className="px-5 pb-4">
-                    <a
-                      href={post.mediaUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#E51A1A] text-sm hover:underline"
-                    >
-                      View Reel
-                    </a>
                   </div>
                 )}
 

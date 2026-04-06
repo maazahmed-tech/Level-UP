@@ -17,16 +17,7 @@ interface WorkoutRow {
   youtubeUrl?: string | null;
 }
 
-function extractYouTubeId(url: string): string {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]+)/);
-  return match ? match[1] : "";
-}
-
-function getYoutubeThumbnail(url?: string | null): string | null {
-  if (!url) return null;
-  const id = extractYouTubeId(url);
-  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
-}
+import VideoThumbnail from "@/components/ui/VideoThumbnail";
 
 export default function AdminWorkoutsClient({
   workouts,
@@ -105,38 +96,14 @@ export default function AdminWorkoutsClient({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {workouts.map((w) => {
-            const thumbnail = getYoutubeThumbnail(w.youtubeUrl);
             return (
               <div
                 key={w.id}
-                className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-[#3A3A3A] transition-colors flex flex-col"
+                className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-[#3A3A3A] transition-colors flex flex-col"
               >
-                {/* Thumbnail with play button overlay */}
+                {/* Thumbnail */}
                 <div className="relative w-full aspect-video bg-[#0A0A0A]">
-                  {thumbnail ? (
-                    <>
-                      <img
-                        src={thumbnail}
-                        alt={w.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-[#E51A1A]/90 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg
-                        className="w-10 h-10 text-white/10"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
-                  )}
+                  <VideoThumbnail url={w.youtubeUrl || ""} height="h-full" />
                   {/* Duration badge */}
                   {w.duration && (
                     <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded">

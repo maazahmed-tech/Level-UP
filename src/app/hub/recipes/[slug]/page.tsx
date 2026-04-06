@@ -14,15 +14,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
   Fakeaways: "\uD83C\uDF55",
 };
 
-function extractYouTubeId(url: string): string | null {
-  const longMatch = url.match(
-    /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
-  );
-  if (longMatch) return longMatch[1];
-  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (shortMatch) return shortMatch[1];
-  return null;
-}
+import VideoEmbed from "@/components/ui/VideoEmbed";
 
 export default async function RecipeDetailPage({
   params,
@@ -63,7 +55,7 @@ export default async function RecipeDetailPage({
   const carbsPct = totalMacros > 0 ? Math.round((recipe.carbs / totalMacros) * 100) : 0;
   const fatPct = totalMacros > 0 ? Math.round((recipe.fat / totalMacros) * 100) : 0;
 
-  const videoId = recipe.videoUrl ? extractYouTubeId(recipe.videoUrl) : null;
+  const hasVideo = !!recipe.videoUrl;
 
   return (
     <div>
@@ -120,26 +112,16 @@ export default async function RecipeDetailPage({
         {/* LEFT COLUMN */}
         <div className="flex-1 min-w-0">
           {/* Video Section */}
-          {videoId ? (
+          {hasVideo ? (
             <div className="mb-8">
-              <iframe
-                src={`https://www.youtube.com/embed/${videoId}`}
-                allowFullScreen
-                className="w-full aspect-video rounded-xl"
-              />
+              <VideoEmbed url={recipe.videoUrl!} />
             </div>
           ) : (
             <div className="relative aspect-video bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center mb-8 overflow-hidden">
-              <svg
-                className="w-16 h-16 text-white/20 mb-3"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-16 h-16 text-white/20 mb-3" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
-              <span className="text-white/40 text-sm font-semibold">
-                Video Coming Soon
-              </span>
+              <span className="text-white/40 text-sm font-semibold">Video Coming Soon</span>
             </div>
           )}
 

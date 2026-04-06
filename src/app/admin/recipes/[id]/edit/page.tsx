@@ -343,7 +343,7 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
                 type="text"
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder="Paste video URL (YouTube, Instagram, TikTok, Facebook)"
                 className={inputClass}
               />
             </div>
