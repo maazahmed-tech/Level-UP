@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useBranding } from "@/lib/branding";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 const sidebarGroups = [
   {
@@ -111,6 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <p className="text-sm font-bold text-white truncate">{coachName}</p>
               <p className="text-[10px] text-white/30">Admin Panel</p>
             </div>
+            <NotificationBell panelMode="sidebar" />
           </div>
         </div>
 
@@ -148,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </svg>
         </button>
         <span className="text-white font-bold text-sm tracking-wider uppercase">Admin</span>
-        <div className="w-6" />
+        <NotificationBell />
       </div>
 
       {/* ── Mobile Backdrop (blur + dim) ── */}

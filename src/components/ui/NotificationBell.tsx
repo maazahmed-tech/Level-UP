@@ -80,7 +80,52 @@ function NotifIcon({ type }: { type: string }) {
   );
 }
 
-export default function NotificationBell() {
+function NotifList({ notifications, loading, onClickNotif }: {
+  notifications: Notification[];
+  loading: boolean;
+  onClickNotif: (n: Notification) => void;
+}) {
+  if (loading) {
+    return <div className="px-4 py-8 text-center text-white/30 text-sm">Loading...</div>;
+  }
+  if (notifications.length === 0) {
+    return <div className="px-4 py-8 text-center text-white/30 text-sm">No notifications yet</div>;
+  }
+  return (
+    <>
+      {notifications.slice(0, 20).map((n) => (
+        <button
+          key={n.id}
+          onClick={() => onClickNotif(n)}
+          className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-none cursor-pointer ${
+            n.isRead ? "bg-transparent hover:bg-white/5" : "bg-[#E51A1A]/5 hover:bg-[#E51A1A]/10"
+          }`}
+        >
+          <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+            n.isRead ? "bg-[#2A2A2A] text-white/30" : "bg-[#E51A1A]/20 text-[#E51A1A]"
+          }`}>
+            <NotifIcon type={n.type} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs font-semibold truncate ${n.isRead ? "text-white/50" : "text-white"}`}>{n.title}</p>
+            <p className="text-[11px] text-white/40 line-clamp-2 mt-0.5">{n.message}</p>
+            <p className="text-[10px] text-white/20 mt-1">{timeAgo(n.createdAt)}</p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 mt-1">
+            {!n.isRead && <div className="w-2 h-2 rounded-full bg-[#E51A1A]" />}
+            {n.actionUrl && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            )}
+          </div>
+        </button>
+      ))}
+    </>
+  );
+}
+
+export default function NotificationBell({ panelMode }: { panelMode?: "sidebar" } = {}) {
   const router = useRouter();
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -193,7 +238,8 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {open && (
+      {/* Dropdown mode (default) */}
+      {open && panelMode !== "sidebar" && (
         <div className="absolute right-0 top-full mt-2 w-[320px] bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl shadow-2xl z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A2A2A]">
             <h3 className="text-sm font-bold text-white">Notifications</h3>
@@ -206,66 +252,41 @@ export default function NotificationBell() {
               </button>
             )}
           </div>
-
           <div className="max-h-[360px] overflow-y-auto">
-            {loading ? (
-              <div className="px-4 py-8 text-center text-white/30 text-sm">
-                Loading...
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-white/30 text-sm">
-                No notifications yet
-              </div>
-            ) : (
-              notifications.slice(0, 10).map((n) => (
+            <NotifList notifications={notifications} loading={loading} onClickNotif={handleNotificationClick} />
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar panel mode (edge-to-edge, used in admin desktop) */}
+      {open && panelMode === "sidebar" && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          {/* Panel slides from right */}
+          <div className="ml-auto relative w-full max-w-[380px] h-full bg-[#0A0A0A] border-l border-[#2A2A2A] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2A2A2A]">
+              <h3 className="text-base font-bold text-white">Notifications</h3>
+              <div className="flex items-center gap-3">
+                {count > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    className="text-[11px] text-[#E51A1A] font-semibold bg-transparent border-none cursor-pointer hover:underline"
+                  >
+                    Mark all read
+                  </button>
+                )}
                 <button
-                  key={n.id}
-                  onClick={() => handleNotificationClick(n)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-none cursor-pointer ${
-                    n.isRead
-                      ? "bg-transparent hover:bg-white/5"
-                      : "bg-[#E51A1A]/5 hover:bg-[#E51A1A]/10"
-                  }`}
+                  onClick={() => setOpen(false)}
+                  className="text-white/40 hover:text-white text-lg bg-transparent border-none cursor-pointer"
                 >
-                  <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    n.isRead ? "bg-[#2A2A2A] text-white/30" : "bg-[#E51A1A]/20 text-[#E51A1A]"
-                  }`}>
-                    <NotifIcon type={n.type} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-semibold truncate ${n.isRead ? "text-white/50" : "text-white"}`}>
-                      {n.title}
-                    </p>
-                    <p className="text-[11px] text-white/40 line-clamp-2 mt-0.5">
-                      {n.message}
-                    </p>
-                    <p className="text-[10px] text-white/20 mt-1">
-                      {timeAgo(n.createdAt)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0 mt-1">
-                    {!n.isRead && (
-                      <div className="w-2 h-2 rounded-full bg-[#E51A1A]" />
-                    )}
-                    {n.actionUrl && (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-white/30"
-                      >
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    )}
-                  </div>
+                  &times;
                 </button>
-              ))
-            )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <NotifList notifications={notifications} loading={loading} onClickNotif={handleNotificationClick} />
+            </div>
           </div>
         </div>
       )}
