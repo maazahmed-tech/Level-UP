@@ -95,37 +95,58 @@ export async function POST(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
-    // Bulk replace in a transaction (needed for nested meal creates)
-    await prisma.$transaction(async (tx) => {
-      // Cascade delete handles PlanDayMeal cleanup
-      await tx.planTemplateDay.deleteMany({ where: { templateId } });
+    // Separate days with meals from those without
+    const daysWithMeals = days.filter(d => d.meals && d.meals.length > 0);
+    const daysWithoutMeals = days.filter(d => !d.meals || d.meals.length === 0);
 
-      for (const d of days) {
-        await tx.planTemplateDay.create({
-          data: {
-            templateId,
-            dayOfWeek: d.dayOfWeek,
-            weekNumber: d.weekNumber || 1,
-            workoutId: d.workoutId || null,
-            workoutNotes: d.workoutNotes || null,
-            mealPlan: d.mealPlan || null,
-            calorieTarget: d.calorieTarget || null,
-            proteinTarget: d.proteinTarget || null,
-            carbsTarget: d.carbsTarget || null,
-            fatTarget: d.fatTarget || null,
-            notes: d.notes || null,
-            meals: {
-              create: (d.meals || []).map((m, idx) => ({
-                mealType: m.mealType,
-                recipeId: m.recipeId,
-                servings: m.servings || 1,
-                sortOrder: m.sortOrder ?? idx,
-              })),
-            },
+    // Delete existing days (cascade deletes PlanDayMeal records too)
+    await prisma.planTemplateDay.deleteMany({ where: { templateId } });
+
+    // Bulk create days without meals (fast)
+    if (daysWithoutMeals.length > 0) {
+      await prisma.planTemplateDay.createMany({
+        data: daysWithoutMeals.map((d: DayInput) => ({
+          templateId,
+          dayOfWeek: d.dayOfWeek,
+          weekNumber: d.weekNumber || 1,
+          workoutId: d.workoutId ?? null,
+          workoutNotes: d.workoutNotes || null,
+          mealPlan: d.mealPlan || null,
+          calorieTarget: d.calorieTarget ?? null,
+          proteinTarget: d.proteinTarget ?? null,
+          carbsTarget: d.carbsTarget ?? null,
+          fatTarget: d.fatTarget ?? null,
+          notes: d.notes || null,
+        })),
+      });
+    }
+
+    // Create days with meals individually (needed for nested creates)
+    for (const d of daysWithMeals) {
+      await prisma.planTemplateDay.create({
+        data: {
+          templateId,
+          dayOfWeek: d.dayOfWeek,
+          weekNumber: d.weekNumber || 1,
+          workoutId: d.workoutId ?? null,
+          workoutNotes: d.workoutNotes || null,
+          mealPlan: d.mealPlan || null,
+          calorieTarget: d.calorieTarget ?? null,
+          proteinTarget: d.proteinTarget ?? null,
+          carbsTarget: d.carbsTarget ?? null,
+          fatTarget: d.fatTarget ?? null,
+          notes: d.notes || null,
+          meals: {
+            create: (d.meals || []).map((m, idx) => ({
+              mealType: m.mealType,
+              recipeId: m.recipeId,
+              servings: m.servings || 1,
+              sortOrder: m.sortOrder ?? idx,
+            })),
           },
-        });
-      }
-    });
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, count: days.length });
   } catch (error) {
