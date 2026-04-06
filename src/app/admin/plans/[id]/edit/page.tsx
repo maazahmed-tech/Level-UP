@@ -103,6 +103,7 @@ export default function EditPlanTemplatePage() {
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [expandedMealTypes, setExpandedMealTypes] = useState<Set<string>>(new Set());
+  const [copyMode, setCopyMode] = useState<{ source: string; targets: Set<string> } | null>(null);
 
   // Edit form state for current cell
   const [cellForm, setCellForm] = useState<TemplateDay>(emptyDay(1, 1));
@@ -223,6 +224,68 @@ export default function EditPlanTemplatePage() {
     updated.delete(editingCell);
     setDays(updated);
     setEditingCell(null);
+  }
+
+  // ── Copy helpers ──
+
+  function startCopyDay() {
+    if (!editingCell) return;
+    // Save the current cell first
+    saveCell();
+    setCopyMode({ source: editingCell, targets: new Set() });
+  }
+
+  function toggleCopyTarget(key: string) {
+    if (!copyMode) return;
+    const next = new Set(copyMode.targets);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setCopyMode({ ...copyMode, targets: next });
+  }
+
+  function executeCopy() {
+    if (!copyMode || copyMode.targets.size === 0) return;
+    const source = days.get(copyMode.source);
+    if (!source) { setCopyMode(null); return; }
+
+    const updated = new Map(days);
+    for (const targetKey of copyMode.targets) {
+      const [wStr, dStr] = targetKey.split("-");
+      const weekNum = parseInt(wStr);
+      const dayNum = parseInt(dStr);
+      updated.set(targetKey, {
+        ...source,
+        weekNumber: weekNum,
+        dayOfWeek: dayNum,
+        meals: source.meals.map(m => ({ ...m })),
+      });
+    }
+    setDays(updated);
+    setCopyMode(null);
+  }
+
+  function copyWeekToAll(sourceWeek: number) {
+    if (!template) return;
+    const updated = new Map(days);
+    for (let dow = 1; dow <= 7; dow++) {
+      const srcKey = dayKey(sourceWeek, dow);
+      const src = days.get(srcKey);
+      for (let w = 1; w <= template.durationWeeks; w++) {
+        if (w === sourceWeek) continue;
+        const tgtKey = dayKey(w, dow);
+        if (src) {
+          updated.set(tgtKey, {
+            ...src,
+            weekNumber: w,
+            dayOfWeek: dow,
+            meals: src.meals.map(m => ({ ...m })),
+          });
+        } else {
+          updated.delete(tgtKey);
+        }
+      }
+    }
+    setDays(updated);
   }
 
   // Calculate total macros from all meals
@@ -457,7 +520,17 @@ export default function EditPlanTemplatePage() {
       <div className="space-y-4">
         {weeks.map((week) => (
           <div key={week} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-white/60 mb-3">Week {week}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white/60">Week {week}</h3>
+              {template.durationWeeks > 1 && (
+                <button
+                  onClick={() => { if (confirm(`Copy all days from Week ${week} to every other week?`)) copyWeekToAll(week); }}
+                  className="text-[10px] text-white/30 hover:text-[#E51A1A] transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  Copy to all weeks
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-7 gap-2">
               {[1, 2, 3, 4, 5, 6, 7].map((dow) => {
                 const key = dayKey(week, dow);
@@ -748,12 +821,20 @@ export default function EditPlanTemplatePage() {
 
             {/* Modal Actions */}
             <div className="p-5 border-t border-[#2A2A2A] flex items-center justify-between">
-              <button
-                onClick={clearCell}
-                className="text-sm text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer"
-              >
-                Clear Day
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={clearCell}
+                  className="text-sm text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer"
+                >
+                  Clear Day
+                </button>
+                <button
+                  onClick={startCopyDay}
+                  className="text-sm text-[#FF6B00] hover:text-[#FFB800] bg-transparent border-none cursor-pointer"
+                >
+                  Copy to...
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setEditingCell(null)}
@@ -768,6 +849,83 @@ export default function EditPlanTemplatePage() {
                   Set Day
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Copy Day Picker Modal ── */}
+      {copyMode && template && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-5 border-b border-[#2A2A2A]">
+              <h3 className="text-white font-semibold">Copy Day To...</h3>
+              <p className="text-xs text-white/40 mt-1">
+                Select which days should receive this content. Existing data will be overwritten.
+              </p>
+            </div>
+            <div className="p-5 space-y-3">
+              {weeks.map((week) => (
+                <div key={week}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-semibold text-white/50">Week {week}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = new Set(copyMode.targets);
+                        const weekKeys = [1,2,3,4,5,6,7].map(d => dayKey(week, d)).filter(k => k !== copyMode.source);
+                        const allSelected = weekKeys.every(k => next.has(k));
+                        for (const k of weekKeys) {
+                          if (allSelected) next.delete(k); else next.add(k);
+                        }
+                        setCopyMode({ ...copyMode, targets: next });
+                      }}
+                      className="text-[10px] text-[#FF6B00] hover:text-[#FFB800] bg-transparent border-none cursor-pointer"
+                    >
+                      {[1,2,3,4,5,6,7].map(d => dayKey(week, d)).filter(k => k !== copyMode.source).every(k => copyMode.targets.has(k)) ? "Deselect all" : "Select all"}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {[1,2,3,4,5,6,7].map((dow) => {
+                      const key = dayKey(week, dow);
+                      const isSource = key === copyMode.source;
+                      const isSelected = copyMode.targets.has(key);
+                      return (
+                        <button
+                          key={dow}
+                          type="button"
+                          disabled={isSource}
+                          onClick={() => toggleCopyTarget(key)}
+                          className={`py-2 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                            isSource
+                              ? "bg-[#E51A1A]/20 border-[#E51A1A]/40 text-[#E51A1A] cursor-not-allowed"
+                              : isSelected
+                                ? "bg-[#FF6B00]/20 border-[#FF6B00]/40 text-[#FF6B00]"
+                                : "bg-[#0A0A0A] border-[#2A2A2A] text-white/40 hover:border-white/30"
+                          }`}
+                        >
+                          {DAY_LABELS[dow - 1]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-5 border-t border-[#2A2A2A] flex items-center justify-between">
+              <button
+                onClick={() => setCopyMode(null)}
+                className="text-sm text-white/50 hover:text-white/70 bg-transparent border-none cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeCopy}
+                disabled={copyMode.targets.size === 0}
+                className="px-5 py-1.5 bg-[#FF6B00] text-white text-sm font-semibold rounded-lg hover:bg-[#FF6B00]/90 transition-colors disabled:opacity-30 cursor-pointer"
+              >
+                Copy to {copyMode.targets.size} day{copyMode.targets.size !== 1 ? "s" : ""}
+              </button>
             </div>
           </div>
         </div>
