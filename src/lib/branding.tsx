@@ -38,16 +38,18 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Dynamically update favicon when it changes
+  // Dynamically update favicon — use API route instead of base64 for efficiency
   useEffect(() => {
     if (loading) return;
     const link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+    // Always point to /api/favicon which serves the DB image or falls back to static
+    const href = faviconUrl !== "/images/logo.svg" ? "/api/favicon" : "/images/logo.svg";
     if (link) {
-      link.href = faviconUrl;
+      link.href = href;
     } else {
       const newLink = document.createElement("link");
       newLink.rel = "icon";
-      newLink.href = faviconUrl;
+      newLink.href = href;
       document.head.appendChild(newLink);
     }
   }, [faviconUrl, loading]);

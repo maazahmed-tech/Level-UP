@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Level Up | Online Personal Training",
   description:
     "Transform your body with Level Up. Nutrition tools, meal tracking, and fitness guidance by Coach Raheel.",
-  icons: { icon: "/images/logo.svg" },
+  icons: { icon: "/api/favicon" },
 };
 
 export default function RootLayout({
