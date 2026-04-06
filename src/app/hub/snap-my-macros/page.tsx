@@ -71,7 +71,6 @@ export default function SnapMyMacrosPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [description, setDescription] = useState("");
-  const [imageData, setImageData] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -235,7 +234,6 @@ export default function SnapMyMacrosPage() {
           carbs: totals.carbs,
           fat: totals.fat,
           ingredients: JSON.stringify(ingredients),
-          imageData,
           loggedDate: todayStr(),
           loggedTime: nowTimeStr(),
         }),
@@ -243,7 +241,6 @@ export default function SnapMyMacrosPage() {
       if (res.ok) {
         setIngredients([]);
         setDescription("");
-        setImageData(null);
         setSearchQuery("");
         setTab("meals");
         setLogDate(todayStr());
@@ -252,14 +249,6 @@ export default function SnapMyMacrosPage() {
       alert("Failed to log meal");
     }
     setSaving(false);
-  }
-
-  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setImageData(reader.result as string);
-    reader.readAsDataURL(file);
   }
 
   async function deleteMeal(id: number) {
@@ -443,40 +432,6 @@ export default function SnapMyMacrosPage() {
             />
           </div>
 
-          {/* Photo Upload */}
-          <div>
-            <label className="text-xs text-white/40 mb-1 block">
-              Meal Photo (optional)
-            </label>
-            <div className="flex items-center gap-3">
-              <label className="px-4 py-2 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl text-white/60 text-sm cursor-pointer hover:border-[#E51A1A] transition">
-                {imageData ? "Change Photo" : "Add Photo"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhoto}
-                  className="hidden"
-                />
-              </label>
-              {imageData && (
-                <div className="relative">
-                  <img
-                    src={imageData}
-                    alt="Meal preview"
-                    className="w-12 h-12 rounded-lg object-cover"
-                  />
-                  <button
-                    onClick={() => setImageData(null)}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center"
-                  >
-                    x
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Log Button */}
           <button
             onClick={handleLogMeal}
@@ -576,13 +531,6 @@ export default function SnapMyMacrosPage() {
                             }
                             className="w-full p-3 flex items-center gap-3 text-left"
                           >
-                            {meal.imageData && (
-                              <img
-                                src={meal.imageData}
-                                alt=""
-                                className="w-10 h-10 rounded-lg object-cover shrink-0"
-                              />
-                            )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-white font-medium truncate">
                                 {meal.description}

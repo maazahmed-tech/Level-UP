@@ -21,7 +21,6 @@ type BodyMeasurement = {
   chestInches: number | null; hipsInches: number | null;
   armsInches: number | null; imageData: string | null; notes: string | null;
 };
-type ProgressPhoto = { id: number; imageData: string; photoDate: string; notes: string };
 type Favourite = { id: number; recipe: { id: number; title: string; slug: string; calories: number } };
 type Message = {
   id: number; content: string; imageData: string | null;
@@ -43,7 +42,7 @@ type UserData = {
   hoursSinceLastLog: number | null; unreadMessages: number;
   macroTarget: { calories: number; protein: number; carbs: number; fat: number; goal: string } | null;
   mealLogs: MealLog[]; weightLogs: WeightLog[]; stepLogs: StepLog[];
-  bodyMeasurements: BodyMeasurement[]; progressPhotos: ProgressPhoto[];
+  bodyMeasurements: BodyMeasurement[];
   favourites: Favourite[]; messages: Message[];
 };
 

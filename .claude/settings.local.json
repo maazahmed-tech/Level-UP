@@ -94,7 +94,10 @@
       "Bash(node -e \"require\\(''''sharp''''\\)\")",
       "Bash(taskkill //F //IM node.exe)",
       "Bash(python3 -c \":*)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(xargs grep:*)",
+      "Bash(do grep:*)",
+      "Bash(done)"
     ]
   }
 }

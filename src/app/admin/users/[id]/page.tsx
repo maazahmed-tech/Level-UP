@@ -14,7 +14,6 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     include: {
       mealLogs: { orderBy: { loggedDate: "desc" }, take: 100 },
       weightLogs: { orderBy: { loggedDate: "desc" }, take: 90 },
-      progressPhotos: { orderBy: { photoDate: "desc" }, take: 20 },
       macroTarget: true,
       favourites: { include: { recipe: true } },
       stepLogs: { orderBy: { loggedDate: "desc" }, take: 90 },
@@ -130,9 +129,6 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
       waistInches: b.waistInches, chestInches: b.chestInches,
       hipsInches: b.hipsInches, armsInches: b.armsInches,
       imageData: b.imageData, notes: b.notes,
-    })),
-    progressPhotos: user.progressPhotos.map(p => ({
-      id: p.id, imageData: p.imageData, photoDate: p.photoDate.toISOString(), notes: p.notes || "",
     })),
     favourites: user.favourites.map(f => ({
       id: f.id, recipe: { id: f.recipe.id, title: f.recipe.title, slug: f.recipe.slug, calories: f.recipe.calories },
