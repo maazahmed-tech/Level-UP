@@ -24,6 +24,8 @@ export async function GET() {
       email: user.email,
       country: user.country,
       role: user.role,
+      plan: user.plan,
+      planStatus: user.planStatus,
       unitPreference: user.unitPreference,
       createdAt: user.createdAt,
       age: user.age,

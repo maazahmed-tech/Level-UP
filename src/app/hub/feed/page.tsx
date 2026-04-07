@@ -57,6 +57,8 @@ export default function HubFeedPage() {
   const [commentsData, setCommentsData] = useState<Record<number, Comment[]>>({});
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
   const [sendingComment, setSendingComment] = useState<number | null>(null);
+  const [newPostText, setNewPostText] = useState("");
+  const [postingNew, setPostingNew] = useState(false);
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -71,6 +73,23 @@ export default function HubFeedPage() {
       setLoading(false);
     }
   }, []);
+
+  async function createPost() {
+    if (!newPostText.trim() || postingNew) return;
+    setPostingNew(true);
+    try {
+      const res = await fetch("/api/feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newPostText.trim() }),
+      });
+      if (res.ok) {
+        setNewPostText("");
+        fetchPosts();
+      }
+    } catch { /* ignore */ }
+    setPostingNew(false);
+  }
 
   useEffect(() => {
     fetchPosts();
@@ -158,6 +177,26 @@ export default function HubFeedPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-white mb-6">Feed</h1>
+
+      {/* Create Post */}
+      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 mb-6">
+        <textarea
+          value={newPostText}
+          onChange={(e) => setNewPostText(e.target.value)}
+          placeholder="Share your progress, ask a question, or motivate others..."
+          rows={2}
+          className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#E51A1A]/50 resize-none"
+        />
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={createPost}
+            disabled={!newPostText.trim() || postingNew}
+            className="px-5 py-2 bg-[#E51A1A] text-white text-sm font-semibold rounded-lg hover:bg-[#C41717] transition-colors disabled:opacity-40 cursor-pointer border-none"
+          >
+            {postingNew ? "Posting..." : "Post"}
+          </button>
+        </div>
+      </div>
 
       {posts.length === 0 ? (
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-12 text-center">

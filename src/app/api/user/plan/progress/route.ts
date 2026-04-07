@@ -104,7 +104,10 @@ export async function POST(req: NextRequest) {
 
         if (!existingLog) {
           // Combine all recipes into one log entry
-          const names = planMeals.map(m => m.recipe.title).join(" + ");
+          const names = planMeals.map(m => {
+            const srvInfo = m.servings !== (m.recipe.servings || 1) ? ` (${m.servings} srv)` : "";
+            return m.recipe.title + srvInfo;
+          }).join(" + ");
           let totalCal = 0, totalPro = 0, totalCarbs = 0, totalFat = 0;
           for (const m of planMeals) {
             const mult = m.servings / (m.recipe.servings || 1);

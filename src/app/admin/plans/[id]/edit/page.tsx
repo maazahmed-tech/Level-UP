@@ -729,7 +729,7 @@ export default function EditPlanTemplatePage() {
                               <optgroup key={cat} label={cat}>
                                 {recipesByCategory[cat].map((r) => (
                                   <option key={r.id} value={r.id}>
-                                    {r.title} ({r.calories} kcal)
+                                    {r.title} ({r.servings > 1 ? Math.round(r.calories / r.servings) + " kcal/srv" : r.calories + " kcal"})
                                   </option>
                                 ))}
                               </optgroup>

@@ -42,12 +42,22 @@ export async function GET() {
         try {
 
         if (t.metric === "weight") {
+          // Check weightLog first, then bodyMeasurement as fallback
           const latest = await prisma.weightLog.findFirst({
             where: { userId: user.userId },
             orderBy: { loggedDate: "desc" },
             select: { weightKg: true },
           });
-          if (latest) currentValue = latest.weightKg;
+          if (latest) {
+            currentValue = latest.weightKg;
+          } else {
+            const measurement = await prisma.bodyMeasurement.findFirst({
+              where: { userId: user.userId, weightKg: { not: null } },
+              orderBy: { loggedDate: "desc" },
+              select: { weightKg: true },
+            });
+            if (measurement?.weightKg) currentValue = measurement.weightKg;
+          }
         } else if (
           ["belly", "waist", "chest", "hips", "arms"].includes(t.metric)
         ) {
