@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 
 type Workout = {
@@ -94,6 +94,16 @@ export default function MyPlanPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Off-plan meal logging
+  const [offPlanOpen, setOffPlanOpen] = useState<Set<string>>(new Set());
+  const [offPlanSearch, setOffPlanSearch] = useState("");
+  const [offPlanResults, setOffPlanResults] = useState<{ id: number; name: string; caloriesPer100g: number; proteinPer100g: number; carbsPer100g: number; fatPer100g: number }[]>([]);
+  const [offPlanCustom, setOffPlanCustom] = useState(false);
+  const [offPlanForm, setOffPlanForm] = useState({ name: "", weight: "", calories: "", protein: "", carbs: "", fat: "" });
+  const [offPlanSaving, setOffPlanSaving] = useState(false);
+  const [offPlanLogged, setOffPlanLogged] = useState<{ mealType: string; description: string; calories: number }[]>([]);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPlan = useCallback(async (date?: string) => {
     try {
@@ -203,6 +213,94 @@ export default function MyPlanPage() {
 
   function goToToday() {
     setSelectedDate(getTodayStr());
+  }
+
+  // ── Off-plan meal logging ──
+  function toggleOffPlan(mealType: string) {
+    const next = new Set(offPlanOpen);
+    if (next.has(mealType)) { next.delete(mealType); } else { next.add(mealType); }
+    setOffPlanOpen(next);
+    setOffPlanSearch("");
+    setOffPlanResults([]);
+    setOffPlanCustom(false);
+    setOffPlanForm({ name: "", weight: "", calories: "", protein: "", carbs: "", fat: "" });
+  }
+
+  function searchFoods(query: string) {
+    setOffPlanSearch(query);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (query.length < 2) { setOffPlanResults([]); return; }
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/food-items?search=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        setOffPlanResults(data.items || []);
+      } catch { /* ignore */ }
+    }, 300);
+  }
+
+  function selectFoodItem(item: { name: string; caloriesPer100g: number; proteinPer100g: number; carbsPer100g: number; fatPer100g: number }) {
+    setOffPlanForm({
+      name: item.name,
+      weight: "100",
+      calories: String(item.caloriesPer100g),
+      protein: String(item.proteinPer100g),
+      carbs: String(item.carbsPer100g),
+      fat: String(item.fatPer100g),
+    });
+    setOffPlanSearch("");
+    setOffPlanResults([]);
+  }
+
+  function updateOffPlanWeight(grams: string) {
+    const w = parseFloat(grams) || 0;
+    // If we have a food item selected, recalc macros based on weight
+    if (offPlanForm.name && !offPlanCustom) {
+      const origWeight = 100; // per 100g base
+      const ratio = w / origWeight;
+      const baseCals = parseFloat(offPlanForm.calories) / (parseFloat(offPlanForm.weight) || 100) * 100;
+      const basePro = parseFloat(offPlanForm.protein) / (parseFloat(offPlanForm.weight) || 100) * 100;
+      const baseCarbs = parseFloat(offPlanForm.carbs) / (parseFloat(offPlanForm.weight) || 100) * 100;
+      const baseFat = parseFloat(offPlanForm.fat) / (parseFloat(offPlanForm.weight) || 100) * 100;
+      setOffPlanForm(prev => ({
+        ...prev,
+        weight: grams,
+        calories: String(Math.round(baseCals * ratio)),
+        protein: String(Math.round(basePro * ratio * 10) / 10),
+        carbs: String(Math.round(baseCarbs * ratio * 10) / 10),
+        fat: String(Math.round(baseFat * ratio * 10) / 10),
+      }));
+    } else {
+      setOffPlanForm(prev => ({ ...prev, weight: grams }));
+    }
+  }
+
+  async function logOffPlanMeal(mealType: string) {
+    if (!offPlanForm.name.trim() || !offPlanForm.calories) return;
+    setOffPlanSaving(true);
+    try {
+      const now = new Date();
+      await fetch("/api/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mealType: mealType.charAt(0).toUpperCase() + mealType.slice(1),
+          description: offPlanForm.name.trim() + (offPlanForm.weight ? ` (${offPlanForm.weight}g)` : ""),
+          calories: parseInt(offPlanForm.calories) || 0,
+          protein: parseFloat(offPlanForm.protein) || 0,
+          carbs: parseFloat(offPlanForm.carbs) || 0,
+          fat: parseFloat(offPlanForm.fat) || 0,
+          loggedDate: data?.selectedDate || getTodayStr(),
+          loggedTime: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+        }),
+      });
+      setOffPlanLogged(prev => [...prev, { mealType, description: offPlanForm.name, calories: parseInt(offPlanForm.calories) || 0 }]);
+      toggleOffPlan(mealType); // close form
+    } catch {
+      alert("Failed to log meal");
+    } finally {
+      setOffPlanSaving(false);
+    }
   }
 
   function getDayStatus(dayIndex: number) {
@@ -572,6 +670,107 @@ export default function MyPlanPage() {
                         );
                       })}
                     </div>
+
+                    {/* Off-plan logged items */}
+                    {offPlanLogged.filter(l => l.mealType === mealType).map((l, i) => (
+                      <div key={`offplan-${i}`} className="flex items-center gap-3 bg-[#FF6B00]/10 border border-[#FF6B00]/20 rounded-xl p-3">
+                        <div className="w-12 h-12 rounded-lg bg-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] text-xs font-bold shrink-0">OFF</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{l.description}</p>
+                          <p className="text-[11px] text-white/40">{l.calories} kcal (off-plan)</p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* "I had something else" button + form */}
+                    {canToggle && (
+                      <div className="mt-2">
+                        {!offPlanOpen.has(mealType) ? (
+                          <button
+                            onClick={() => toggleOffPlan(mealType)}
+                            className="text-[11px] text-[#FF6B00]/70 hover:text-[#FF6B00] bg-transparent border-none cursor-pointer py-1"
+                          >
+                            + I had something else
+                          </button>
+                        ) : (
+                          <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold text-white/50">Log off-plan meal</p>
+                              <button onClick={() => toggleOffPlan(mealType)} className="text-white/30 hover:text-white text-sm bg-transparent border-none cursor-pointer">&times;</button>
+                            </div>
+
+                            {!offPlanCustom && (
+                              <>
+                                <input
+                                  type="text"
+                                  value={offPlanSearch}
+                                  onChange={(e) => searchFoods(e.target.value)}
+                                  placeholder="Search food database..."
+                                  className="w-full px-3 py-2 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#E51A1A]/50"
+                                />
+                                {offPlanResults.length > 0 && (
+                                  <div className="max-h-32 overflow-y-auto space-y-0.5">
+                                    {offPlanResults.slice(0, 8).map((item) => (
+                                      <button key={item.id} onClick={() => selectFoodItem(item)}
+                                        className="w-full text-left px-2 py-1.5 rounded text-xs text-white/70 hover:bg-white/5 bg-transparent border-none cursor-pointer truncate">
+                                        {item.name} <span className="text-white/30">({item.caloriesPer100g} kcal/100g)</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                <button onClick={() => { setOffPlanCustom(true); setOffPlanForm({ name: "", weight: "", calories: "", protein: "", carbs: "", fat: "" }); }}
+                                  className="text-[10px] text-[#FF6B00] hover:underline bg-transparent border-none cursor-pointer">
+                                  Or add custom item
+                                </button>
+                              </>
+                            )}
+
+                            {(offPlanForm.name || offPlanCustom) && (
+                              <div className="space-y-2">
+                                {offPlanCustom && (
+                                  <input type="text" value={offPlanForm.name} onChange={(e) => setOffPlanForm(p => ({ ...p, name: e.target.value }))}
+                                    placeholder="Food name" className="w-full px-3 py-1.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-[#E51A1A]/50" />
+                                )}
+                                {offPlanForm.name && !offPlanCustom && (
+                                  <p className="text-xs text-white font-medium">{offPlanForm.name}</p>
+                                )}
+                                <div className="grid grid-cols-5 gap-1.5">
+                                  <div>
+                                    <label className="text-[9px] text-white/30 block">Grams</label>
+                                    <input type="number" value={offPlanForm.weight} onChange={(e) => offPlanCustom ? setOffPlanForm(p => ({ ...p, weight: e.target.value })) : updateOffPlanWeight(e.target.value)}
+                                      className="w-full px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-xs text-white text-center focus:outline-none focus:border-[#E51A1A]/50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-white/30 block">Cal</label>
+                                    <input type="number" value={offPlanForm.calories} onChange={(e) => setOffPlanForm(p => ({ ...p, calories: e.target.value }))}
+                                      className="w-full px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-xs text-white text-center focus:outline-none focus:border-[#E51A1A]/50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-white/30 block">P</label>
+                                    <input type="number" value={offPlanForm.protein} onChange={(e) => setOffPlanForm(p => ({ ...p, protein: e.target.value }))}
+                                      className="w-full px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-xs text-white text-center focus:outline-none focus:border-[#E51A1A]/50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-white/30 block">C</label>
+                                    <input type="number" value={offPlanForm.carbs} onChange={(e) => setOffPlanForm(p => ({ ...p, carbs: e.target.value }))}
+                                      className="w-full px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-xs text-white text-center focus:outline-none focus:border-[#E51A1A]/50" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-white/30 block">F</label>
+                                    <input type="number" value={offPlanForm.fat} onChange={(e) => setOffPlanForm(p => ({ ...p, fat: e.target.value }))}
+                                      className="w-full px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-xs text-white text-center focus:outline-none focus:border-[#E51A1A]/50" />
+                                  </div>
+                                </div>
+                                <button onClick={() => logOffPlanMeal(mealType)} disabled={offPlanSaving || !offPlanForm.name.trim()}
+                                  className="w-full py-2 bg-[#FF6B00] text-white text-xs font-semibold rounded-lg hover:bg-[#FF6B00]/90 transition-colors disabled:opacity-40 cursor-pointer border-none">
+                                  {offPlanSaving ? "Logging..." : "Log Meal"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -588,10 +787,10 @@ export default function MyPlanPage() {
           )}
 
           {canToggle && (
-            <Link href="/hub/snap-my-macros"
-              className="inline-flex items-center gap-2 text-[#E51A1A] font-semibold text-sm hover:underline">
-              Log your meals
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <Link href="/hub/my-meals"
+              className="inline-flex items-center gap-2 text-white/40 hover:text-white/60 text-xs mt-2">
+              View meal log history
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </Link>

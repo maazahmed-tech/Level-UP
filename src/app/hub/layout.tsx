@@ -22,7 +22,7 @@ const sidebarGroups = [
       { href: "/hub/recipes", label: "Recipes" },
       { href: "/hub/workouts", label: "Workouts" },
       { href: "/hub/food-chart", label: "Food Chart" },
-      { href: "/hub/snap-my-macros", label: "Meal Tracker" },
+      { href: "/hub/my-meals", label: "My Meals" },
     ],
   },
   {
@@ -211,11 +211,11 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
         {/* Quick Log Buttons */}
         <div className="flex gap-2 pt-1">
           <Link
-            href="/hub/snap-my-macros"
+            href="/hub/my-meals"
             onClick={onNavigate}
             className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold py-2 rounded-lg bg-[#E51A1A]/10 text-[#E51A1A] hover:bg-[#E51A1A]/20 hover:-translate-y-0.5 transition-all"
           >
-            🍽 Meal
+            🍽 Meals
           </Link>
           <Link
             href="/hub/progress"

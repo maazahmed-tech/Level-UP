@@ -50,7 +50,7 @@ const quickLinks = [
   { href: "/hub/workouts", label: "Workouts", desc: "Training programmes" },
   { href: "/hub/restaurants", label: "Restaurants", desc: "Eat out without the guilt" },
   { href: "/hub/calculator", label: "Calculator", desc: "Get your macro targets" },
-  { href: "/hub/snap-my-macros", label: "Meal Tracker", desc: "Photo-based meal tracking" },
+  { href: "/hub/my-meals", label: "My Meals", desc: "View your meal log history" },
   { href: "/hub/progress", label: "Progress", desc: "Log weight and photos" },
   { href: "/hub/analytics", label: "Analytics", desc: "Personal insights and trends" },
   { href: "/hub/steps", label: "Steps", desc: "Track daily steps" },
@@ -381,11 +381,14 @@ export default function HubDashboard() {
             <div>
               <p className="font-semibold text-sm text-white">Track your meals</p>
               <p className="text-white/50 text-sm">
-                Use{" "}
-                <Link href="/hub/snap-my-macros" className="text-[#E51A1A] font-semibold">
-                  Snap My Macros
+                Log off-plan meals from{" "}
+                <Link href="/hub/my-plan" className="text-[#E51A1A] font-semibold">
+                  My Plan
                 </Link>{" "}
-                to log meals with a photo.
+                and view history in{" "}
+                <Link href="/hub/my-meals" className="text-[#E51A1A] font-semibold">
+                  My Meals
+                </Link>.
               </p>
             </div>
           </div>

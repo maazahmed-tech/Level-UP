@@ -97,7 +97,9 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(xargs grep:*)",
       "Bash(do grep:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(rm -rf .next)",
+      "Bash(rmdir /s /q src/app/hub/snap-my-macros)"
     ]
   }
 }
