@@ -15,7 +15,7 @@ export async function GET() {
         userId: user.userId,
         isVisible: true,
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }],
     });
 
     // Deduplicate: keep latest per metric
@@ -38,7 +38,8 @@ export async function GET() {
     // Fill current values from user logs
     const enriched = await Promise.all(
       unique.map(async (t) => {
-        let currentValue = t.currentValue;
+        let currentValue: number | null = t.currentValue;
+        try {
 
         if (t.metric === "weight") {
           const latest = await prisma.weightLog.findFirst({
@@ -81,6 +82,7 @@ export async function GET() {
           }
         }
 
+        } catch { /* ignore enrichment errors */ }
         return {
           id: t.id,
           metric: t.metric,
